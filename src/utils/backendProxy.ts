@@ -1,35 +1,33 @@
 
-// Proxy para contornar Mixed Content em desenvolvimento
+// Configuração do backend com suporte a HTTPS
 const BACKEND_IP = '56.124.22.200:3001';
 
-// Para desenvolvimento, usamos um proxy CORS público
-// Em produção, configure HTTPS no servidor
+// Detectar se estamos em desenvolvimento ou produção
 const isDevelopment = window.location.hostname.includes('lovableproject.com');
 
 export const getBackendUrl = () => {
-  if (isDevelopment) {
-    // Usar proxy CORS para desenvolvimento
-    return `https://cors-anywhere.herokuapp.com/http://${BACKEND_IP}`;
-  }
-  return `http://${BACKEND_IP}`;
+  // Sempre tentar HTTPS primeiro
+  return `https://${BACKEND_IP}`;
 };
 
 export const makeBackendRequest = async (endpoint: string, options: RequestInit = {}) => {
   const baseUrl = getBackendUrl();
   const url = `${baseUrl}${endpoint}`;
   
-  // Adicionar headers necessários para o proxy CORS
+  console.log(`🔗 Fazendo requisição para: ${url}`);
+  
   const headers = {
     ...options.headers,
-    'X-Requested-With': 'XMLHttpRequest',
+    'Content-Type': 'application/json',
   };
 
-  if (isDevelopment) {
-    headers['X-CORS-Anywhere-Host'] = BACKEND_IP.split(':')[0];
+  try {
+    return fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (error) {
+    console.error('❌ Erro na requisição:', error);
+    throw error;
   }
-
-  return fetch(url, {
-    ...options,
-    headers,
-  });
 };
