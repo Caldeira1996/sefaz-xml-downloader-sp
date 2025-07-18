@@ -16,9 +16,9 @@ interface ConsultaRequest {
   dataFim?: string
 }
 
-// Rate limiting simples (em produção, usar Redis)
+// Rate limiting mais relaxado para testes
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT = 10; // Aumentar limite para testes
+const RATE_LIMIT = 20; // Aumentar limite para testes
 const RATE_WINDOW = 60000; // 1 minuto
 
 function checkRateLimit(userId: string): boolean {
@@ -39,7 +39,6 @@ function checkRateLimit(userId: string): boolean {
 }
 
 function sanitizeXmlContent(xmlContent: string): string {
-  // Remover declaração XML externa para prevenir XXE
   return xmlContent.replace(/<!DOCTYPE[^>]*>/gi, '');
 }
 
@@ -48,7 +47,6 @@ function validateCnpj(cnpj: string): boolean {
   if (cleanCnpj.length !== 14) return false;
   if (/^(\d)\1{13}$/.test(cleanCnpj)) return false;
   
-  // Validação dos dígitos verificadores
   let sum = 0;
   const weights1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
   
@@ -75,13 +73,11 @@ function validateCnpj(cnpj: string): boolean {
 }
 
 function formatDateForSefaz(dateString: string): string {
-  // Converte data para formato AAAA-MM-DD
   const date = new Date(dateString);
   return date.toISOString().split('T')[0];
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -97,13 +93,11 @@ Deno.serve(async (req) => {
       }
     )
 
-    // Verificar autenticação
     const { data: { user } } = await supabaseClient.auth.getUser()
     if (!user) {
       throw new Error('Usuário não autenticado')
     }
 
-    // Rate limiting
     if (!checkRateLimit(user.id)) {
       return new Response(
         JSON.stringify({
@@ -120,7 +114,6 @@ Deno.serve(async (req) => {
     const requestData: ConsultaRequest = await req.json()
     const { certificadoId, cnpjConsultado, tipoConsulta, ambiente, dataInicio, dataFim } = requestData
 
-    // Validações de entrada
     if (!certificadoId || !cnpjConsultado || !tipoConsulta || !ambiente) {
       throw new Error('Parâmetros obrigatórios não fornecidos')
     }
@@ -140,7 +133,6 @@ Deno.serve(async (req) => {
     console.log(`Iniciando consulta SEFAZ: ${tipoConsulta} para CNPJ ${cnpjConsultado} no ambiente ${ambiente}`)
     if (dataInicio) console.log(`Período: ${dataInicio} até ${dataFim || dataInicio}`)
 
-    // Buscar certificado do usuário
     const { data: certificado, error: certError } = await supabaseClient
       .from('certificados')
       .select('*')
@@ -155,7 +147,6 @@ Deno.serve(async (req) => {
 
     console.log(`Certificado encontrado: ${certificado.nome} para CNPJ ${certificado.cnpj}`)
 
-    // Criar registro da consulta
     const { data: consulta, error: consultaError } = await supabaseClient
       .from('consultas_sefaz')
       .insert({
@@ -172,57 +163,80 @@ Deno.serve(async (req) => {
       throw new Error(`Erro ao criar consulta: ${consultaError.message}`)
     }
 
-    // URLs dos webservices SEFAZ SP
-    const urls = {
-      producao: {
-        manifestacao: 'https://nfe.fazenda.sp.gov.br/ws/nfeconsultadest.asmx',
-        download: 'https://nfe.fazenda.sp.gov.br/ws/nfedownload.asmx'
-      },
-      homologacao: {
-        manifestacao: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeconsultadest.asmx',
-        download: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfedownload.asmx'
-      }
+    // URLs múltiplos para tentar conectar com a SEFAZ SP
+    const urlsAlternativos = {
+      producao: [
+        'https://nfe.fazenda.sp.gov.br/ws/nfeconsultadest.asmx',
+        'https://nfe.fazenda.sp.gov.br/nfeweb/services/nfeconsultadest.asmx',
+        'https://www.nfe.fazenda.sp.gov.br/ws/nfeconsultadest.asmx'
+      ],
+      homologacao: [
+        'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeconsultadest.asmx',
+        'https://homologacao.nfe.fazenda.sp.gov.br/nfeweb/services/nfeconsultadest.asmx',
+        'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeconsultadest2.asmx'
+      ]
     }
 
     let resultado
     let xmlsBaixados = 0
 
-    console.log(`Usando URL: ${urls[ambiente].manifestacao}`)
-
     if (tipoConsulta === 'manifestacao') {
-      // Consultar manifestações pendentes usando o serviço correto
-      resultado = await consultarManifestacoesPendentes(
-        urls[ambiente].manifestacao,
-        certificado,
-        cnpjConsultado.replace(/\D/g, ''),
-        ambiente,
-        dataInicio,
-        dataFim
-      )
+      // Tentar múltiplas URLs até conseguir conectar
+      const urls = urlsAlternativos[ambiente];
+      let ultimoErro = null;
       
-      console.log('Resultado da consulta:', JSON.stringify(resultado, null, 2))
+      for (const url of urls) {
+        console.log(`Tentando URL: ${url}`)
+        
+        try {
+          resultado = await consultarManifestacoesPendentes(
+            url,
+            certificado,
+            cnpjConsultado.replace(/\D/g, ''),
+            ambiente,
+            dataInicio,
+            dataFim
+          )
+          
+          if (resultado.success) {
+            console.log(`Sucesso com URL: ${url}`)
+            break;
+          } else {
+            console.log(`Falha com URL ${url}:`, resultado.error)
+            ultimoErro = resultado;
+          }
+        } catch (error) {
+          console.error(`Erro com URL ${url}:`, error.message)
+          ultimoErro = { success: false, error: error.message };
+        }
+      }
+      
+      // Se todas as URLs falharam, usar o último erro
+      if (!resultado || !resultado.success) {
+        resultado = ultimoErro || { success: false, error: 'Todas as URLs de conexão falharam' };
+      }
+      
+      console.log('Resultado final da consulta:', JSON.stringify(resultado, null, 2))
       
       if (resultado.success && resultado.data?.chavesNfe && resultado.data.chavesNfe.length > 0) {
         console.log(`Encontradas ${resultado.data.chavesNfe.length} NFe(s)`)
         
-        // Baixar XMLs das notas encontradas (máximo 10 por vez para teste)
-        const chavesLimitadas = resultado.data.chavesNfe.slice(0, 10);
+        // Baixar XMLs das notas encontradas
+        const chavesLimitadas = resultado.data.chavesNfe.slice(0, 50); // Aumentar limite
         
         for (const chaveNfe of chavesLimitadas) {
           try {
             console.log(`Baixando XML para chave: ${chaveNfe}`)
             const xmlResult = await baixarXmlNfe(
-              urls[ambiente].download,
+              urls[0].replace('nfeconsultadest', 'nfedownload'),
               certificado,
               chaveNfe,
               ambiente
             )
             
             if (xmlResult.success && xmlResult.xmlContent) {
-              // Sanitizar XML antes de salvar
               const sanitizedXml = sanitizeXmlContent(xmlResult.xmlContent);
               
-              // Salvar XML no banco
               await salvarXmlNoBanco(
                 supabaseClient,
                 consulta.id,
@@ -244,7 +258,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Atualizar status da consulta
     await supabaseClient
       .from('consultas_sefaz')
       .update({
@@ -302,7 +315,6 @@ async function consultarManifestacoesPendentes(
 ) {
   const tpAmb = ambiente === 'producao' ? '1' : '2';
   
-  // Preparar filtros de data se fornecidos
   let filtroData = '';
   if (dataInicio) {
     const dataInicioFormatada = formatDateForSefaz(dataInicio);
@@ -345,91 +357,68 @@ async function consultarManifestacoesPendentes(
   try {
     console.log(`Enviando requisição SOAP para: ${url}`)
     console.log(`CNPJ consultado: ${cnpj}, Ambiente: ${ambiente} (${tpAmb})`)
-    console.log(`SOAP Envelope:`, soapEnvelope.substring(0, 500) + '...')
     
-    // Primeira tentativa: usar fetch nativo do Deno com configurações específicas
-    const fetchWithConfig = async (options: any) => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 segundos
-      
-      try {
-        // Usar fetch com configurações específicas para Edge Functions
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'text/xml; charset=utf-8',
-            'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeConsultaDest/nfeConsultaNFDest',
-            'User-Agent': 'EdgeFunction-SEFAZ/1.0',
-            'Accept': 'text/xml, application/soap+xml',
-            'Connection': 'close',
-            'Cache-Control': 'no-cache',
-            ...options.headers
-          },
-          body: soapEnvelope,
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        return response;
-      } catch (error) {
-        clearTimeout(timeoutId);
-        throw error;
-      }
-    };
-
-    console.log('Tentativa 1: Fetch padrão')
-    let response = await fetchWithConfig({});
+    // Configuração otimizada de fetch para SEFAZ
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos
     
-    console.log(`Status da resposta: ${response.status} ${response.statusText}`)
-    console.log(`Headers da resposta:`, JSON.stringify([...response.headers.entries()]))
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`Erro HTTP ${response.status}: ${errorText.substring(0, 500)}`)
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/xml; charset=utf-8',
+          'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeConsultaDest/nfeConsultaNFDest',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'text/xml, application/soap+xml, application/xml, */*',
+          'Accept-Encoding': 'gzip, deflate',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+          'Connection': 'keep-alive',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        body: soapEnvelope,
+        signal: controller.signal
+      });
       
-      if (response.status >= 400 && response.status < 500) {
-        // Tentar com headers mais simples
-        console.log('Tentativa 2: Headers simplificados')
-        response = await fetchWithConfig({
-          headers: {
-            'Content-Type': 'text/xml',
-            'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NfeConsultaDest/nfeConsultaNFDest"'
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-        }
-      } else {
+      clearTimeout(timeoutId);
+      
+      console.log(`Status da resposta: ${response.status} ${response.statusText}`)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`Erro HTTP ${response.status}: ${errorText.substring(0, 1000)}`)
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
-    }
 
-    const xmlResponse = await response.text()
-    console.log(`Resposta recebida (${xmlResponse.length} caracteres)`)
-    
-    return parseResponse(xmlResponse, diagnostico)
+      const xmlResponse = await response.text()
+      console.log(`Resposta recebida (${xmlResponse.length} caracteres)`)
+      
+      return parseResponse(xmlResponse, diagnostico)
+
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
 
   } catch (error) {
     console.error('Erro na consulta SEFAZ:', error)
     diagnostico.error = error.message;
     
-    // Diagnosticar tipo de erro
     const errorDetails = {
       errorName: error.name,
       errorMessage: error.message,
       possibleCause: 
-        error.message.includes('AbortError') || error.message.includes('timeout') ? 'Timeout de conexão' :
-        error.message.includes('DNS') || error.message.includes('getaddrinfo') ? 'Erro de resolução DNS' :
-        error.message.includes('refused') || error.message.includes('ECONNREFUSED') ? 'Conexão recusada pelo servidor' :
+        error.message.includes('AbortError') || error.message.includes('timeout') ? 'Timeout de conexão - servidor SEFAZ não respondeu' :
+        error.message.includes('DNS') || error.message.includes('getaddrinfo') ? 'Erro de resolução DNS - verifique conectividade' :
+        error.message.includes('refused') || error.message.includes('ECONNREFUSED') ? 'Conexão recusada - servidor pode estar indisponível' :
         error.message.includes('certificate') || error.message.includes('SSL') ? 'Erro de certificado SSL/TLS' :
         error.message.includes('network') || error.message.includes('fetch') ? 'Erro de conectividade de rede' :
         'Erro desconhecido de conectividade',
       suggestions: [
-        'Verificar se o ambiente Supabase permite conexões externas',
-        'Confirmar se os URLs da SEFAZ estão corretos',
-        'Testar conectividade com outros webservices',
-        'Verificar logs detalhados no Supabase Dashboard'
+        'Verificar se a SEFAZ SP está operacional',
+        'Tentar novamente em alguns minutos',
+        'Verificar conectividade com outros webservices',
+        'Contatar suporte técnico se o problema persistir'
       ]
     };
     
@@ -444,13 +433,11 @@ async function consultarManifestacoesPendentes(
 
 function parseResponse(xmlResponse: string, diagnostico: any) {
   console.log(`Analisando resposta XML (${xmlResponse.length} caracteres)`)
-  console.log(`Primeiros 1000 chars: ${xmlResponse.substring(0, 1000)}`)
+  console.log(`Primeiros 2000 chars: ${xmlResponse.substring(0, 2000)}`)
 
-  // Parse da resposta XML para extrair informações
   const parser = new DOMParser()
   const doc = parser.parseFromString(xmlResponse, 'text/xml')
   
-  // Verificar se há erros na resposta
   const faultString = doc.querySelector('faultstring')?.textContent
   if (faultString) {
     console.error(`Erro SOAP: ${faultString}`)
@@ -458,17 +445,18 @@ function parseResponse(xmlResponse: string, diagnostico: any) {
     throw new Error(`Erro SOAP: ${faultString}`)
   }
 
-  // Procurar por chaves de NFe na resposta
   const chavesNfe = []
   
-  // Tentar diferentes seletores para encontrar as chaves
+  // Seletores mais abrangentes para encontrar chaves de NFe
   const possibleSelectors = [
     'chNFe',
     'infNFe',
     'nfe chNFe',
     'retConsNFeDest chNFe',
     'resNFe chNFe',
-    'resNFe[chNFe]'
+    'resNFe[chNFe]',
+    'ret chNFe',
+    'NFe chNFe'
   ]
   
   for (const selector of possibleSelectors) {
@@ -481,7 +469,6 @@ function parseResponse(xmlResponse: string, diagnostico: any) {
         chave = element.getAttribute('chNFe')
       }
       
-      // Verificar se é uma chave válida (44 dígitos)
       if (chave && /^[0-9]{44}$/.test(chave)) {
         chavesNfe.push(chave)
         console.log(`Chave NFe encontrada: ${chave}`)
@@ -489,21 +476,24 @@ function parseResponse(xmlResponse: string, diagnostico: any) {
     }
   }
 
-  // Se não encontrou chaves nos seletores padrão, procurar no XML bruto
+  // Busca por regex mais agressiva
   if (chavesNfe.length === 0) {
-    console.log('Procurando chaves no XML bruto...')
-    const chaveRegex = /(\d{44})/g;
+    console.log('Procurando chaves no XML bruto com regex...')
+    // Procurar por sequências de 44 dígitos
+    const chaveRegex = /\b(\d{44})\b/g;
     let match;
     while ((match = chaveRegex.exec(xmlResponse)) !== null) {
       const chave = match[1];
       if (chave && !chavesNfe.includes(chave)) {
-        chavesNfe.push(chave);
-        console.log(`Chave NFe encontrada via regex: ${chave}`);
+        // Validar se é uma chave NFe válida (verificar se começa com código válido)
+        if (chave.substring(0, 2) === '35' || chave.substring(0, 2) === '11' || chave.substring(0, 2) === '31') {
+          chavesNfe.push(chave);
+          console.log(`Chave NFe encontrada via regex: ${chave}`);
+        }
       }
     }
   }
 
-  // Verificar códigos de retorno
   const cStat = doc.querySelector('cStat')?.textContent
   const xMotivo = doc.querySelector('xMotivo')?.textContent
   
@@ -515,26 +505,25 @@ function parseResponse(xmlResponse: string, diagnostico: any) {
   diagnostico.chavesEncontradas = chavesNfe.length;
 
   // Códigos de sucesso da SEFAZ: 138 = consulta realizada com sucesso
-  if (cStat && ['138'].includes(cStat)) {
+  if (cStat && ['138', '137'].includes(cStat)) {
     console.log(`Consulta bem-sucedida: ${cStat} - ${xMotivo}`)
   } else if (cStat) {
-    console.log(`Status não esperado: ${cStat} - ${xMotivo}`)
+    console.log(`Status SEFAZ: ${cStat} - ${xMotivo}`)
   }
 
   return {
     success: true,
     data: {
-      chavesNfe: [...new Set(chavesNfe)], // Remove duplicatas
+      chavesNfe: [...new Set(chavesNfe)],
       codigoStatus: cStat,
       motivo: xMotivo,
-      xmlResponse: xmlResponse.substring(0, 2000) // Limitar para log
+      xmlResponse: xmlResponse.substring(0, 3000)
     },
     diagnostico
   }
 }
 
 async function baixarXmlNfe(url: string, certificado: any, chaveNfe: string, ambiente: string) {
-  // Validar chave NFe
   if (!/^[0-9]{44}$/.test(chaveNfe)) {
     throw new Error('Chave NFE inválida')
   }
@@ -559,15 +548,15 @@ async function baixarXmlNfe(url: string, certificado: any, chaveNfe: string, amb
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
     
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
         'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeDownload/nfeDownloadNF',
-        'User-Agent': 'EdgeFunction-SEFAZ/1.0',
-        'Connection': 'close'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Connection': 'keep-alive'
       },
       body: soapEnvelope,
       signal: controller.signal
@@ -586,33 +575,23 @@ async function baixarXmlNfe(url: string, certificado: any, chaveNfe: string, amb
       xmlContent
     }
   } catch (error) {
-    if (error.name === 'AbortError') {
-      return {
-        success: false,
-        error: 'Timeout ao baixar XML'
-      }
-    }
-    
     return {
       success: false,
-      error: error.message
+      error: error.name === 'AbortError' ? 'Timeout ao baixar XML' : error.message
     }
   }
 }
 
 async function salvarXmlNoBanco(supabaseClient: any, consultaId: string, userId: string, chaveNfe: string, xmlContent: string) {
-  // Parse do XML para extrair informações
   const parser = new DOMParser()
   const doc = parser.parseFromString(xmlContent, 'text/xml')
   
-  // Extrair dados básicos da NFe (implementação simplificada)
   const numeroNfe = doc.querySelector('nNF')?.textContent?.trim() || ''
   const cnpjEmitente = doc.querySelector('emit CNPJ')?.textContent?.trim() || ''
   const razaoSocialEmitente = doc.querySelector('emit xNome')?.textContent?.trim() || ''
   const dataEmissao = doc.querySelector('dhEmi')?.textContent?.trim() || ''
   const valorTotal = doc.querySelector('vNF')?.textContent?.trim() || '0'
 
-  // Sanitizar dados extraídos
   const sanitizedNumeroNfe = numeroNfe.replace(/[^\d]/g, '').substring(0, 20)
   const sanitizedCnpjEmitente = cnpjEmitente.replace(/[^\d]/g, '').substring(0, 14)
   const sanitizedRazaoSocial = razaoSocialEmitente.substring(0, 255)
