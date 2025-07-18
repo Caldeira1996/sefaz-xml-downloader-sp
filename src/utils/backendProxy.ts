@@ -1,6 +1,6 @@
 
 // Configuração do backend com suporte a HTTPS
-const BACKEND_IP = '56.124.22.200:3002'; // Atualizado para porta 3002
+const BACKEND_IP = '56.124.22.200:3002'; // Porta 3002 para HTTPS
 
 // Detectar se estamos em desenvolvimento ou produção
 const isDevelopment = window.location.hostname.includes('lovableproject.com');
