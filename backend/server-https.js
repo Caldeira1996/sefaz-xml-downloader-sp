@@ -8,7 +8,7 @@ const { setupHTTPS } = require('./setup-https');
 
 // Importar as rotas do servidor original
 const app = express();
-const PORT = process.env.HTTPS_PORT || 3001;
+const PORT = process.env.HTTPS_PORT || 3002; // Mudança para 3002
 const HOST = process.env.SERVER_HOST || '0.0.0.0';
 
 // Middleware
@@ -17,9 +17,6 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
-
-// Importar todas as rotas do server.js original
-// (Aqui vamos reutilizar a lógica do server.js)
 
 // Configurar HTTPS
 const sslConfig = setupHTTPS();
@@ -36,19 +33,26 @@ const originalServer = require('./server');
 // Copiar todas as rotas para o servidor HTTPS
 app._router = originalServer._router;
 
-// Criar servidor HTTPS
-const httpsServer = https.createServer(sslConfig, app);
+// Função para tentar diferentes portas
+const tryStartServer = (port) => {
+  const httpsServer = https.createServer(sslConfig, app);
+  
+  httpsServer.listen(port, HOST, () => {
+    console.log(`🔐 Servidor HTTPS SEFAZ rodando em https://${HOST}:${port}`);
+    console.log(`🌐 Health check: https://${HOST}:${port}/health`);
+    console.log(`✅ SSL/TLS configurado e funcionando!`);
+  });
 
-httpsServer.listen(PORT, HOST, () => {
-  console.log(`🔐 Servidor HTTPS SEFAZ rodando em https://${HOST}:${PORT}`);
-  console.log(`🌐 Health check: https://${HOST}:${PORT}/health`);
-  console.log(`✅ SSL/TLS configurado e funcionando!`);
-});
+  httpsServer.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      console.log(`⚠️  Porta ${port} já está em uso. Tentando porta ${port + 1}...`);
+      httpsServer.close();
+      tryStartServer(port + 1);
+    } else {
+      console.error('❌ Erro no servidor HTTPS:', error);
+    }
+  });
+};
 
-// Tratamento de erros
-httpsServer.on('error', (error) => {
-  console.error('❌ Erro no servidor HTTPS:', error);
-  if (error.code === 'EADDRINUSE') {
-    console.log(`⚠️  Porta ${PORT} já está em uso. Tente uma porta diferente.`);
-  }
-});
+// Iniciar servidor
+tryStartServer(PORT);
