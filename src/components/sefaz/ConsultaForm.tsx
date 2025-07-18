@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { StatusConectividade } from './StatusConectividade';
 import { AlertCircle, CheckCircle, Info, Calendar as CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -140,6 +141,9 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
 
   return (
     <div className="space-y-4">
+      {/* Componente de Status de Conectividade */}
+      <StatusConectividade />
+
       <Card>
         <CardHeader>
           <CardTitle>Consultar SEFAZ SP</CardTitle>
