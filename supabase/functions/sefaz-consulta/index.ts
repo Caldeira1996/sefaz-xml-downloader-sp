@@ -12,6 +12,8 @@ interface ConsultaRequest {
   cnpjConsultado: string
   tipoConsulta: 'manifestacao' | 'download_nfe'
   ambiente: 'producao' | 'homologacao'
+  dataInicio?: string
+  dataFim?: string
 }
 
 // Rate limiting simples (em produção, usar Redis)
@@ -72,6 +74,12 @@ function validateCnpj(cnpj: string): boolean {
   return parseInt(cleanCnpj[13]) === digit2;
 }
 
+function formatDateForSefaz(dateString: string): string {
+  // Converte data para formato AAAA-MM-DD
+  const date = new Date(dateString);
+  return date.toISOString().split('T')[0];
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -110,7 +118,7 @@ Deno.serve(async (req) => {
     }
 
     const requestData: ConsultaRequest = await req.json()
-    const { certificadoId, cnpjConsultado, tipoConsulta, ambiente } = requestData
+    const { certificadoId, cnpjConsultado, tipoConsulta, ambiente, dataInicio, dataFim } = requestData
 
     // Validações de entrada
     if (!certificadoId || !cnpjConsultado || !tipoConsulta || !ambiente) {
@@ -130,6 +138,7 @@ Deno.serve(async (req) => {
     }
 
     console.log(`Iniciando consulta SEFAZ: ${tipoConsulta} para CNPJ ${cnpjConsultado} no ambiente ${ambiente}`)
+    if (dataInicio) console.log(`Período: ${dataInicio} até ${dataFim || dataInicio}`)
 
     // Buscar certificado do usuário
     const { data: certificado, error: certError } = await supabaseClient
@@ -186,7 +195,9 @@ Deno.serve(async (req) => {
         urls[ambiente].manifestacao,
         certificado,
         cnpjConsultado.replace(/\D/g, ''),
-        ambiente
+        ambiente,
+        dataInicio,
+        dataFim
       )
       
       console.log('Resultado da consulta:', JSON.stringify(resultado, null, 2))
@@ -252,7 +263,8 @@ Deno.serve(async (req) => {
         consultaId: consulta.id,
         totalXmls: resultado.data?.chavesNfe?.length || 0,
         xmlsBaixados,
-        detalhes: resultado.success ? 'Consulta realizada com sucesso' : resultado.error
+        detalhes: resultado.success ? 'Consulta realizada com sucesso' : resultado.error,
+        diagnostico: resultado.diagnostico
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -265,7 +277,12 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Erro interno do servidor'
+        error: error.message || 'Erro interno do servidor',
+        diagnostico: {
+          timestamp: new Date().toISOString(),
+          errorType: error.constructor.name,
+          stack: error.stack
+        }
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -275,9 +292,27 @@ Deno.serve(async (req) => {
   }
 })
 
-async function consultarManifestacoesPendentes(url: string, certificado: any, cnpj: string, ambiente: string) {
+async function consultarManifestacoesPendentes(
+  url: string, 
+  certificado: any, 
+  cnpj: string, 
+  ambiente: string,
+  dataInicio?: string,
+  dataFim?: string
+) {
   // Usar o serviço de consulta destinatário para buscar NFe direcionadas ao CNPJ
   const tpAmb = ambiente === 'producao' ? '1' : '2';
+  
+  // Preparar filtros de data se fornecidos
+  let filtroData = '';
+  if (dataInicio) {
+    const dataInicioFormatada = formatDateForSefaz(dataInicio);
+    const dataFimFormatada = dataFim ? formatDateForSefaz(dataFim) : dataInicioFormatada;
+    
+    filtroData = `
+      <dhInicio>${dataInicioFormatada}T00:00:00-03:00</dhInicio>
+      <dhFim>${dataFimFormatada}T23:59:59-03:00</dhFim>`;
+  }
   
   const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NfeConsultaDest">
@@ -291,37 +326,73 @@ async function consultarManifestacoesPendentes(url: string, certificado: any, cn
           <CNPJ>${cnpj}</CNPJ>
           <indNFe>0</indNFe>
           <indEmi>1</indEmi>
-          <cUF>35</cUF>
+          <cUF>35</cUF>${filtroData}
         </consNFeDest>
       </nfe:nfeDadosMsg>
     </nfe:nfeConsultaNFDest>
   </soap:Body>
 </soap:Envelope>`
 
+  const diagnostico = {
+    url,
+    cnpj,
+    ambiente,
+    tpAmb,
+    dataInicio: dataInicio || 'sem filtro',
+    dataFim: dataFim || 'sem filtro',
+    timestamp: new Date().toISOString()
+  };
+
   try {
     console.log(`Enviando requisição SOAP para: ${url}`)
     console.log(`CNPJ consultado: ${cnpj}, Ambiente: ${ambiente} (${tpAmb})`)
+    console.log(`SOAP Envelope:`, soapEnvelope.substring(0, 500) + '...')
     
-    const response = await fetch(url, {
+    // Tentar diferentes abordagens de conectividade
+    const fetchOptions = {
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
         'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeConsultaDest/nfeConsultaNFDest',
-        'User-Agent': 'SEFAZ-SP-Consulta/1.0'
+        'User-Agent': 'SEFAZ-SP-Consulta/1.0',
+        'Accept': '*/*',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
       },
       body: soapEnvelope
-    })
+    }
 
-    console.log(`Status da resposta: ${response.status} ${response.statusText}`)
+    console.log('Tentativa 1: Requisição direta')
+    let response = await fetch(url, fetchOptions)
+    
+    if (!response.ok) {
+      console.log(`Tentativa 1 falhou: ${response.status} ${response.statusText}`)
+      
+      // Tentativa 2: sem alguns headers
+      console.log('Tentativa 2: Headers simplificados')
+      const simpleOptions = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/xml',
+          'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeConsultaDest/nfeConsultaNFDest'
+        },
+        body: soapEnvelope
+      }
+      
+      response = await fetch(url, simpleOptions)
+    }
+
+    console.log(`Status final da resposta: ${response.status} ${response.statusText}`)
+    console.log(`Headers da resposta:`, JSON.stringify([...response.headers.entries()]))
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error(`Erro HTTP: ${response.status} - ${errorText}`)
+      console.error(`Erro HTTP final: ${response.status} - ${errorText.substring(0, 500)}`)
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
 
     const xmlResponse = await response.text()
-    console.log(`Resposta recebida (primeiros 500 chars): ${xmlResponse.substring(0, 500)}`)
+    console.log(`Resposta recebida (primeiros 1000 chars): ${xmlResponse.substring(0, 1000)}`)
 
     // Parse da resposta XML para extrair informações
     const parser = new DOMParser()
@@ -331,6 +402,7 @@ async function consultarManifestacoesPendentes(url: string, certificado: any, cn
     const faultString = doc.querySelector('faultstring')?.textContent
     if (faultString) {
       console.error(`Erro SOAP: ${faultString}`)
+      diagnostico.soapError = faultString;
       throw new Error(`Erro SOAP: ${faultString}`)
     }
 
@@ -342,7 +414,8 @@ async function consultarManifestacoesPendentes(url: string, certificado: any, cn
       'chNFe',
       'infNFe',
       'nfe chNFe',
-      'retConsNFeDest chNFe'
+      'retConsNFeDest chNFe',
+      'resNFe chNFe'
     ]
     
     for (const selector of possibleSelectors) {
@@ -367,6 +440,8 @@ async function consultarManifestacoesPendentes(url: string, certificado: any, cn
     const xMotivo = doc.querySelector('xMotivo')?.textContent
     
     console.log(`Código de status: ${cStat}, Motivo: ${xMotivo}`)
+    diagnostico.cStat = cStat;
+    diagnostico.xMotivo = xMotivo;
 
     if (cStat && cStat !== '138') { // 138 = consulta realizada com sucesso
       console.log(`Status diferente de sucesso: ${cStat} - ${xMotivo}`)
@@ -378,15 +453,18 @@ async function consultarManifestacoesPendentes(url: string, certificado: any, cn
         chavesNfe: [...new Set(chavesNfe)], // Remove duplicatas
         codigoStatus: cStat,
         motivo: xMotivo,
-        xmlResponse: xmlResponse.substring(0, 1000) // Limitar log
-      }
+        xmlResponse: xmlResponse.substring(0, 2000) // Limitar log
+      },
+      diagnostico
     }
   } catch (error) {
     console.error('Erro na consulta SEFAZ:', error)
+    diagnostico.error = error.message;
     return {
       success: false,
       error: error.message,
-      details: `Erro ao conectar com ${url}`
+      details: `Erro ao conectar com ${url}`,
+      diagnostico
     }
   }
 }

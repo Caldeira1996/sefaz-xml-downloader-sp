@@ -6,10 +6,14 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { AlertCircle, CheckCircle, Info } from 'lucide-react';
+import { AlertCircle, CheckCircle, Info, Calendar as CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface Certificado {
   id: string;
@@ -22,6 +26,8 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
   const [certificados, setCertificados] = useState<Certificado[]>([]);
   const [certificadoSelecionado, setCertificadoSelecionado] = useState('');
   const [cnpjConsulta, setCnpjConsulta] = useState('');
+  const [dataInicio, setDataInicio] = useState<Date>();
+  const [dataFim, setDataFim] = useState<Date>();
   const [loading, setLoading] = useState(false);
   const [ultimoResultado, setUltimoResultado] = useState<any>(null);
   const { toast } = useToast();
@@ -68,20 +74,19 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
     try {
       const certificado = certificados.find(c => c.id === certificadoSelecionado);
       
-      console.log('Iniciando consulta SEFAZ...', {
+      const requestBody = {
         certificadoId: certificadoSelecionado,
         cnpjConsultado: cnpjConsulta.replace(/\D/g, ''),
         tipoConsulta,
-        ambiente: certificado?.ambiente
-      });
+        ambiente: certificado?.ambiente || 'homologacao',
+        ...(dataInicio && { dataInicio: dataInicio.toISOString().split('T')[0] }),
+        ...(dataFim && { dataFim: dataFim.toISOString().split('T')[0] })
+      };
+      
+      console.log('Iniciando consulta SEFAZ...', requestBody);
       
       const response = await supabase.functions.invoke('sefaz-consulta', {
-        body: {
-          certificadoId: certificadoSelecionado,
-          cnpjConsultado: cnpjConsulta.replace(/\D/g, ''),
-          tipoConsulta,
-          ambiente: certificado?.ambiente || 'homologacao'
-        }
+        body: requestBody
       });
 
       console.log('Resposta da função:', response);
@@ -182,6 +187,82 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
             )}
           </div>
 
+          {/* Filtros de Data */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Data Início (opcional)</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dataInicio && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dataInicio ? format(dataInicio, "dd/MM/yyyy") : "Selecionar data"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={dataInicio}
+                    onSelect={setDataInicio}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div>
+              <Label>Data Fim (opcional)</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dataFim && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dataFim ? format(dataFim, "dd/MM/yyyy") : "Selecionar data"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={dataFim}
+                    onSelect={setDataFim}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          {(dataInicio || dataFim) && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDataInicio(undefined)}
+                disabled={!dataInicio}
+              >
+                Limpar Data Início
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDataFim(undefined)}
+                disabled={!dataFim}
+              >
+                Limpar Data Fim
+              </Button>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Button
               onClick={() => handleConsulta('manifestacao')}
@@ -238,6 +319,27 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
                   <p className="text-sm text-muted-foreground">{ultimoResultado.details}</p>
                 )}
               </div>
+            )}
+            
+            {/* Informações de diagnóstico */}
+            {ultimoResultado.diagnostico && (
+              <details className="mt-4">
+                <summary className="cursor-pointer text-sm font-medium">Informações de Diagnóstico</summary>
+                <div className="mt-2 p-3 bg-muted rounded text-xs space-y-1">
+                  <p><strong>URL:</strong> {ultimoResultado.diagnostico.url}</p>
+                  <p><strong>Ambiente:</strong> {ultimoResultado.diagnostico.ambiente}</p>
+                  <p><strong>Timestamp:</strong> {ultimoResultado.diagnostico.timestamp}</p>
+                  {ultimoResultado.diagnostico.cStat && (
+                    <p><strong>Código SEFAZ:</strong> {ultimoResultado.diagnostico.cStat}</p>
+                  )}
+                  {ultimoResultado.diagnostico.xMotivo && (
+                    <p><strong>Motivo SEFAZ:</strong> {ultimoResultado.diagnostico.xMotivo}</p>
+                  )}
+                  {ultimoResultado.diagnostico.soapError && (
+                    <p className="text-red-600"><strong>Erro SOAP:</strong> {ultimoResultado.diagnostico.soapError}</p>
+                  )}
+                </div>
+              </details>
             )}
           </CardContent>
         </Card>
