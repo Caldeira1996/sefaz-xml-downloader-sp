@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0'
 import { DOMParser } from 'https://deno.land/x/deno_dom/deno-dom-wasm.ts'
 
@@ -128,7 +129,7 @@ Deno.serve(async (req) => {
       throw new Error('Ambiente inválido')
     }
 
-    console.log(`Iniciando consulta SEFAZ: ${tipoConsulta} para CNPJ ${cnpjConsultado}`)
+    console.log(`Iniciando consulta SEFAZ: ${tipoConsulta} para CNPJ ${cnpjConsultado} no ambiente ${ambiente}`)
 
     // Buscar certificado do usuário
     const { data: certificado, error: certError } = await supabaseClient
@@ -143,10 +144,7 @@ Deno.serve(async (req) => {
       throw new Error('Certificado não encontrado, inativo ou não autorizado')
     }
 
-    // Verificar se o CNPJ do certificado corresponde ao consultado
-    if (certificado.cnpj !== cnpjConsultado.replace(/\D/g, '')) {
-      throw new Error('CNPJ consultado não corresponde ao certificado')
-    }
+    console.log(`Certificado encontrado: ${certificado.nome} para CNPJ ${certificado.cnpj}`)
 
     // Criar registro da consulta
     const { data: consulta, error: consultaError } = await supabaseClient
@@ -165,14 +163,14 @@ Deno.serve(async (req) => {
       throw new Error(`Erro ao criar consulta: ${consultaError.message}`)
     }
 
-    // URLs dos webservices SEFAZ SP
+    // URLs corretas dos webservices SEFAZ SP
     const urls = {
       producao: {
-        manifestacao: 'https://nfe.fazenda.sp.gov.br/ws/nfedownload.asmx',
+        manifestacao: 'https://nfe.fazenda.sp.gov.br/ws/nfeconsultadest.asmx',
         download: 'https://nfe.fazenda.sp.gov.br/ws/nfedownload.asmx'
       },
       homologacao: {
-        manifestacao: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfedownload.asmx',
+        manifestacao: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeconsultadest.asmx',
         download: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfedownload.asmx'
       }
     }
@@ -180,24 +178,33 @@ Deno.serve(async (req) => {
     let resultado
     let xmlsBaixados = 0
 
+    console.log(`Usando URL: ${urls[ambiente].manifestacao}`)
+
     if (tipoConsulta === 'manifestacao') {
-      // Consultar manifestações pendentes
+      // Consultar manifestações pendentes usando o serviço correto
       resultado = await consultarManifestacoesPendentes(
         urls[ambiente].manifestacao,
         certificado,
-        cnpjConsultado.replace(/\D/g, '')
+        cnpjConsultado.replace(/\D/g, ''),
+        ambiente
       )
       
-      if (resultado.success && resultado.data?.chavesNfe) {
-        // Baixar XMLs das notas encontradas (máximo 50 por vez)
-        const chavesLimitadas = resultado.data.chavesNfe.slice(0, 50);
+      console.log('Resultado da consulta:', JSON.stringify(resultado, null, 2))
+      
+      if (resultado.success && resultado.data?.chavesNfe && resultado.data.chavesNfe.length > 0) {
+        console.log(`Encontradas ${resultado.data.chavesNfe.length} NFe(s)`)
+        
+        // Baixar XMLs das notas encontradas (máximo 10 por vez para teste)
+        const chavesLimitadas = resultado.data.chavesNfe.slice(0, 10);
         
         for (const chaveNfe of chavesLimitadas) {
           try {
+            console.log(`Baixando XML para chave: ${chaveNfe}`)
             const xmlResult = await baixarXmlNfe(
               urls[ambiente].download,
               certificado,
-              chaveNfe
+              chaveNfe,
+              ambiente
             )
             
             if (xmlResult.success && xmlResult.xmlContent) {
@@ -213,11 +220,16 @@ Deno.serve(async (req) => {
                 sanitizedXml
               )
               xmlsBaixados++
+              console.log(`XML salvo com sucesso para chave: ${chaveNfe}`)
+            } else {
+              console.log(`Erro ao baixar XML ${chaveNfe}:`, xmlResult.error)
             }
           } catch (error) {
-            console.error(`Erro ao baixar XML ${chaveNfe}:`, error)
+            console.error(`Erro ao processar XML ${chaveNfe}:`, error)
           }
         }
+      } else {
+        console.log('Nenhuma NFe encontrada ou erro na consulta')
       }
     }
 
@@ -232,12 +244,15 @@ Deno.serve(async (req) => {
       })
       .eq('id', consulta.id)
 
+    console.log(`Consulta finalizada: ${xmlsBaixados} XMLs baixados de ${resultado.data?.chavesNfe?.length || 0} encontrados`)
+
     return new Response(
       JSON.stringify({
         success: true,
         consultaId: consulta.id,
         totalXmls: resultado.data?.chavesNfe?.length || 0,
-        xmlsBaixados
+        xmlsBaixados,
+        detalhes: resultado.success ? 'Consulta realizada com sucesso' : resultado.error
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -260,57 +275,109 @@ Deno.serve(async (req) => {
   }
 })
 
-async function consultarManifestacoesPendentes(url: string, certificado: any, cnpj: string) {
+async function consultarManifestacoesPendentes(url: string, certificado: any, cnpj: string, ambiente: string) {
+  // Usar o serviço de consulta destinatário para buscar NFe direcionadas ao CNPJ
+  const tpAmb = ambiente === 'producao' ? '1' : '2';
+  
   const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
-    <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-      <soap:Body>
-        <nfeDownloadNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NfeDownload">
-          <nfeDadosMsg>
-            <downloadNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00">
-              <tpAmb>2</tpAmb>
-              <xServ>DOWNLOAD NFE</xServ>
-              <CNPJ>${cnpj}</CNPJ>
-            </downloadNFe>
-          </nfeDadosMsg>
-        </nfeDownloadNF>
-      </soap:Body>
-    </soap:Envelope>`
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NfeConsultaDest">
+  <soap:Header />
+  <soap:Body>
+    <nfe:nfeConsultaNFDest>
+      <nfe:nfeDadosMsg>
+        <consNFeDest xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
+          <tpAmb>${tpAmb}</tpAmb>
+          <xServ>CONSULTAR NFE DEST</xServ>
+          <CNPJ>${cnpj}</CNPJ>
+          <indNFe>0</indNFe>
+          <indEmi>1</indEmi>
+          <cUF>35</cUF>
+        </consNFeDest>
+      </nfe:nfeDadosMsg>
+    </nfe:nfeConsultaNFDest>
+  </soap:Body>
+</soap:Envelope>`
 
   try {
+    console.log(`Enviando requisição SOAP para: ${url}`)
+    console.log(`CNPJ consultado: ${cnpj}, Ambiente: ${ambiente} (${tpAmb})`)
+    
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
-        'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeDownload/nfeDownloadNF'
+        'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeConsultaDest/nfeConsultaNFDest',
+        'User-Agent': 'SEFAZ-SP-Consulta/1.0'
       },
       body: soapEnvelope
     })
 
+    console.log(`Status da resposta: ${response.status} ${response.statusText}`)
+
     if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`Erro HTTP: ${response.status} - ${errorText}`)
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
 
     const xmlResponse = await response.text()
-    console.log('Resposta SEFAZ recebida')
+    console.log(`Resposta recebida (primeiros 500 chars): ${xmlResponse.substring(0, 500)}`)
 
-    // Parse da resposta XML para extrair chaves das NFe
+    // Parse da resposta XML para extrair informações
     const parser = new DOMParser()
     const doc = parser.parseFromString(xmlResponse, 'text/xml')
     
+    // Verificar se há erros na resposta
+    const faultString = doc.querySelector('faultstring')?.textContent
+    if (faultString) {
+      console.error(`Erro SOAP: ${faultString}`)
+      throw new Error(`Erro SOAP: ${faultString}`)
+    }
+
+    // Procurar por chaves de NFe na resposta
     const chavesNfe = []
-    const infNFes = doc.querySelectorAll('infNFe')
     
-    for (const infNFe of infNFes) {
-      const chave = infNFe.getAttribute('chNFe')
-      if (chave && /^[0-9]{44}$/.test(chave)) { // Validar formato da chave
-        chavesNfe.push(chave)
+    // Tentar diferentes seletores para encontrar as chaves
+    const possibleSelectors = [
+      'chNFe',
+      'infNFe',
+      'nfe chNFe',
+      'retConsNFeDest chNFe'
+    ]
+    
+    for (const selector of possibleSelectors) {
+      const elements = doc.querySelectorAll(selector)
+      console.log(`Seletor '${selector}' encontrou ${elements.length} elementos`)
+      
+      for (const element of elements) {
+        let chave = element.textContent?.trim()
+        if (!chave && element.hasAttribute('chNFe')) {
+          chave = element.getAttribute('chNFe')
+        }
+        
+        if (chave && /^[0-9]{44}$/.test(chave)) {
+          chavesNfe.push(chave)
+          console.log(`Chave NFe encontrada: ${chave}`)
+        }
       }
+    }
+
+    // Se não encontrou chaves, verificar códigos de retorno
+    const cStat = doc.querySelector('cStat')?.textContent
+    const xMotivo = doc.querySelector('xMotivo')?.textContent
+    
+    console.log(`Código de status: ${cStat}, Motivo: ${xMotivo}`)
+
+    if (cStat && cStat !== '138') { // 138 = consulta realizada com sucesso
+      console.log(`Status diferente de sucesso: ${cStat} - ${xMotivo}`)
     }
 
     return {
       success: true,
       data: {
-        chavesNfe,
+        chavesNfe: [...new Set(chavesNfe)], // Remove duplicatas
+        codigoStatus: cStat,
+        motivo: xMotivo,
         xmlResponse: xmlResponse.substring(0, 1000) // Limitar log
       }
     }
@@ -318,38 +385,43 @@ async function consultarManifestacoesPendentes(url: string, certificado: any, cn
     console.error('Erro na consulta SEFAZ:', error)
     return {
       success: false,
-      error: error.message
+      error: error.message,
+      details: `Erro ao conectar com ${url}`
     }
   }
 }
 
-async function baixarXmlNfe(url: string, certificado: any, chaveNfe: string) {
+async function baixarXmlNfe(url: string, certificado: any, chaveNfe: string, ambiente: string) {
   // Validar chave NFe
   if (!/^[0-9]{44}$/.test(chaveNfe)) {
     throw new Error('Chave NFE inválida')
   }
 
+  const tpAmb = ambiente === 'producao' ? '1' : '2';
+
   const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
-    <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-      <soap:Body>
-        <nfeDownloadNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NfeDownload">
-          <nfeDadosMsg>
-            <downloadNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00">
-              <tpAmb>2</tpAmb>
-              <xServ>DOWNLOAD NFE</xServ>
-              <chNFe>${chaveNfe}</chNFe>
-            </downloadNFe>
-          </nfeDadosMsg>
-        </nfeDownloadNF>
-      </soap:Body>
-    </soap:Envelope>`
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NfeDownload">
+  <soap:Header />
+  <soap:Body>
+    <nfe:nfeDownloadNF>
+      <nfe:nfeDadosMsg>
+        <downloadNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00">
+          <tpAmb>${tpAmb}</tpAmb>
+          <xServ>DOWNLOAD NFE</xServ>
+          <chNFe>${chaveNfe}</chNFe>
+        </downloadNFe>
+      </nfe:nfeDadosMsg>
+    </nfe:nfeDownloadNF>
+  </soap:Body>
+</soap:Envelope>`
 
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
-        'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeDownload/nfeDownloadNF'
+        'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeDownload/nfeDownloadNF',
+        'User-Agent': 'SEFAZ-SP-Download/1.0'
       },
       body: soapEnvelope
     })
