@@ -31,11 +31,13 @@ if (!sslConfig) {
   process.exit(1);
 }
 
-// Importar rotas do servidor original
-const originalServer = require('./server');
+// // Importar rotas do servidor original
+// const originalServer = require('./server');
 
-// Copiar todas as rotas para o servidor HTTPS
-app._router = originalServer._router;
+// // Copiar todas as rotas para o servidor HTTPS
+// app._router = originalServer._router;
+
+const app = require('./server');
 
 // Função para tentar diferentes portas
 const tryStartServer = (port) => {

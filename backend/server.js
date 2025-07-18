@@ -322,3 +322,5 @@ app.get('/health', (req, res) => {
 //   console.log(`🔗 CORS configurado para: ${process.env.CORS_ORIGIN || '*'}`);
 // });
 
+module.exports = app;
+
