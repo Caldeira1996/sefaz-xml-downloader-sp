@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { CheckCircle, XCircle, Loader2, RefreshCw, Wifi, WifiOff, Server } from 'lucide-react';
-import { makeBackendRequest } from '@/utils/backendProxy';
+import { makeBackendRequest, getBackendUrl } from '@/utils/backendProxy';
 
 interface StatusConectividade {
   conectado: boolean;
@@ -48,17 +48,22 @@ export const StatusConectividade = () => {
       const backendOnline = await verificarServidorBackend();
       
       if (!backendOnline) {
+        const backendUrl = getBackendUrl();
+        const isHttps = backendUrl.startsWith('https');
+        const porta = isHttps ? '3002' : '3001';
+        const protocolo = isHttps ? 'HTTPS' : 'HTTP';
+        
         setStatus({
           conectado: false,
           ambiente: 'N/A',
           ultimaVerificacao: new Date().toLocaleString('pt-BR'),
-          detalhes: 'Servidor backend offline. Inicie o servidor HTTPS Node.js na porta 3002.',
+          detalhes: `Servidor backend offline. Inicie o servidor ${protocolo} Node.js na porta ${porta}.`,
           servidor: 'Offline'
         });
 
         toast({
           title: "🔌 Servidor Backend Offline",
-          description: "Inicie o servidor HTTPS Node.js para conectar com SEFAZ",
+          description: `Inicie o servidor ${protocolo} Node.js para conectar com SEFAZ`,
           variant: "destructive",
         });
         return;
@@ -82,13 +87,15 @@ export const StatusConectividade = () => {
       }
 
       const data = await response.json();
+      const backendUrl = getBackendUrl();
+      const protocolo = backendUrl.startsWith('https') ? 'HTTPS' : 'HTTP';
       
       setStatus({
         conectado: data.success,
         ambiente: 'Produção',
         ultimaVerificacao: new Date().toLocaleString('pt-BR'),
         detalhes: data.success 
-          ? `Servidor SEFAZ acessível via backend HTTPS (${data.conectividade?.statusCode})` 
+          ? `Servidor SEFAZ acessível via backend ${protocolo} (${data.conectividade?.statusCode})` 
           : data.error,
         servidor: 'Online'
       });
@@ -96,7 +103,7 @@ export const StatusConectividade = () => {
       if (data.success) {
         toast({
           title: "✅ Conectividade OK",
-          description: "Servidor backend HTTPS conectado com SEFAZ SP",
+          description: `Servidor backend ${protocolo} conectado com SEFAZ SP`,
         });
       } else {
         toast({
@@ -146,6 +153,11 @@ export const StatusConectividade = () => {
   }, [user, session]);
 
   if (!user) return null;
+
+  const backendUrl = getBackendUrl();
+  const isHttps = backendUrl.startsWith('https');
+  const porta = isHttps ? '3002' : '3001';
+  const protocolo = isHttps ? 'HTTPS' : 'HTTP';
 
   return (
     <Card className="mb-4">
@@ -220,17 +232,19 @@ export const StatusConectividade = () => {
 
         {!servidorOnline && (
           <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
-            <strong>🔌 Servidor Backend Offline:</strong> Inicie o servidor HTTPS executando:
+            <strong>🔌 Servidor Backend Offline:</strong> Inicie o servidor {protocolo} executando:
             <br />
-            <code>cd backend && npm run start:https</code>
+            <code>cd backend && npm run {isHttps ? 'start:https' : 'start'}</code>
             <br />
-            <strong>Porta:</strong> 3002 (HTTPS)
+            <strong>Porta:</strong> {porta} ({protocolo})
+            <br />
+            <strong>URL:</strong> {backendUrl}
           </div>
         )}
 
         {servidorOnline && !status?.conectado && status && (
           <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
-            <strong>⚠️ Atenção:</strong> Backend HTTPS online mas há problemas na conectividade com SEFAZ.
+            <strong>⚠️ Atenção:</strong> Backend {protocolo} online mas há problemas na conectividade com SEFAZ.
             Verifique sua conexão com a internet e configurações de certificado.
           </div>
         )}
