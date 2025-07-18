@@ -11,9 +11,13 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const HOST = process.env.SERVER_HOST || '0.0.0.0';
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || '*',
+  credentials: true
+}));
 app.use(express.json());
 
 // Supabase client para validar tokens
@@ -311,8 +315,10 @@ app.get('/health', (req, res) => {
 });
 
 // Iniciar servidor
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor proxy SEFAZ rodando na porta ${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`🚀 Servidor proxy SEFAZ rodando em ${HOST}:${PORT}`);
   console.log(`📁 Diretório de certificados: ${certificatesDir}`);
-  console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+  console.log(`🌐 Health check: http://${HOST}:${PORT}/health`);
+  console.log(`🔗 CORS configurado para: ${process.env.CORS_ORIGIN || '*'}`);
 });
+

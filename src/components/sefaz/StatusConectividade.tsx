@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,8 +14,8 @@ interface StatusConectividade {
   servidor?: string;
 }
 
-// URL do servidor backend local
-const BACKEND_URL = 'http://localhost:3001';
+// URL do servidor backend AWS
+const BACKEND_URL = 'http://56.124.22.200:3001';
 
 export const StatusConectividade = () => {
   const [status, setStatus] = useState<StatusConectividade | null>(null);

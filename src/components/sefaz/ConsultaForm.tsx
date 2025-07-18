@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth/AuthProvider';
@@ -24,8 +24,8 @@ interface Certificado {
   is_principal: boolean;
 }
 
-// URL do servidor backend
-const BACKEND_URL = 'http://localhost:3001';
+// URL do servidor backend AWS
+const BACKEND_URL = 'http://56.124.22.200:3001';
 
 export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () => void }) => {
   const [certificados, setCertificados] = useState<Certificado[]>([]);
