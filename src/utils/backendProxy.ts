@@ -9,10 +9,10 @@ export const getBackendUrl = () => {
   if (isDevelopment) {
     // Em desenvolvimento (Lovable), usar HTTPS na porta 3002
     return `https://${BACKEND_IP}:3002`;
-  } else {
-    // Em produção local, usar HTTP na porta 3001
-    return `http://${BACKEND_IP}:3001`;
-  }
+  // } else {
+  //   // Em produção local, usar HTTP na porta 3001
+  //   return `http://${BACKEND_IP}:3001`;
+  // }
 };
 
 export const makeBackendRequest = async (endpoint: string, options: RequestInit = {}) => {
