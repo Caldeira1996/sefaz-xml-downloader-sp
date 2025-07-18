@@ -315,10 +315,10 @@ app.get('/health', (req, res) => {
 });
 
 // Iniciar servidor
-app.listen(PORT, HOST, () => {
-  console.log(`🚀 Servidor proxy SEFAZ rodando em ${HOST}:${PORT}`);
-  console.log(`📁 Diretório de certificados: ${certificatesDir}`);
-  console.log(`🌐 Health check: http://${HOST}:${PORT}/health`);
-  console.log(`🔗 CORS configurado para: ${process.env.CORS_ORIGIN || '*'}`);
-});
+// app.listen(PORT, HOST, () => {
+//   console.log(`🚀 Servidor proxy SEFAZ rodando em ${HOST}:${PORT}`);
+//   console.log(`📁 Diretório de certificados: ${certificatesDir}`);
+//   console.log(`🌐 Health check: http://${HOST}:${PORT}/health`);
+//   console.log(`🔗 CORS configurado para: ${process.env.CORS_ORIGIN || '*'}`);
+// });
 
