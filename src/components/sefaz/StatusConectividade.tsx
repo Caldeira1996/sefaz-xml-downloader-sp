@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { CheckCircle, XCircle, Loader2, RefreshCw, Wifi, WifiOff, Server } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, RefreshCw, Wifi, WifiOff, Server, AlertTriangle } from 'lucide-react';
 import { makeBackendRequest, getBackendUrl } from '@/utils/backendProxy';
 
 interface StatusConectividade {
@@ -45,7 +45,9 @@ export const StatusConectividade = () => {
       
       // Identificar o tipo de erro
       let errorType = 'CONNECTION_ERROR';
-      if (error.message.includes('Mixed Content')) {
+      if (error.message.includes('net::ERR_CERT') || error.message.includes('SSL')) {
+        errorType = 'SSL_ERROR';
+      } else if (error.message.includes('Mixed Content')) {
         errorType = 'MIXED_CONTENT';
       } else if (error.message.includes('CORS')) {
         errorType = 'CORS_ERROR';
@@ -73,16 +75,19 @@ export const StatusConectividade = () => {
         const isHttps = backendUrl.startsWith('https');
         const porta = isHttps ? '3002' : '3001';
         const protocolo = isHttps ? 'HTTPS' : 'HTTP';
+        const isLovable = window.location.hostname.endsWith('.lovableproject.com');
         
         let detalhes = `Servidor backend offline (${protocolo}:${porta}).`;
         
         if (typeof backendResult === 'object' && backendResult.error) {
-          if (backendResult.type === 'MIXED_CONTENT') {
-            detalhes = `Mixed Content Error: Frontend HTTPS não pode acessar servidor HTTP. Configure HTTPS no servidor ou use proxy.`;
+          if (backendResult.type === 'SSL_ERROR') {
+            detalhes = `⚠️ Erro SSL/TLS: Certificado inválido ou auto-assinado. ${isLovable ? 'Usando proxy como fallback.' : 'Configure certificados válidos.'}`;
+          } else if (backendResult.type === 'MIXED_CONTENT') {
+            detalhes = `Mixed Content Error: Frontend HTTPS não pode acessar servidor HTTP.`;
           } else if (backendResult.type === 'CORS_ERROR') {
-            detalhes = `CORS Error: Servidor não permite requisições cross-origin. Verifique configuração CORS.`;
+            detalhes = `CORS Error: Servidor não permite requisições cross-origin.`;
           } else if (backendResult.type === 'NETWORK_ERROR') {
-            detalhes = `Network Error: Não foi possível conectar ao servidor. Verifique se está rodando na porta ${porta}.`;
+            detalhes = `Network Error: Não foi possível conectar ao servidor na porta ${porta}.`;
           } else {
             detalhes = `Erro de conexão: ${backendResult.error}`;
           }
@@ -178,23 +183,13 @@ export const StatusConectividade = () => {
     }
   }, [user, session]);
 
-  // Verificar a cada 2 minutos
-  useEffect(() => {
-    if (!user || !session) return;
-
-    const interval = setInterval(() => {
-      verificarConectividade();
-    }, 2 * 60 * 1000); // 2 minutos
-
-    return () => clearInterval(interval);
-  }, [user, session]);
-
   if (!user) return null;
 
   const backendUrl = getBackendUrl();
   const isHttps = backendUrl.startsWith('https');
   const porta = isHttps ? '3002' : '3001';
   const protocolo = isHttps ? 'HTTPS' : 'HTTP';
+  const isLovable = window.location.hostname.endsWith('.lovableproject.com');
 
   return (
     <Card className="mb-4">
@@ -207,6 +202,9 @@ export const StatusConectividade = () => {
           )}
           Status SEFAZ SP
           <Server className={`h-4 w-4 ml-auto ${servidorOnline ? 'text-green-500' : 'text-red-500'}`} />
+          {isLovable && status?.errorType === 'SSL_ERROR' && (
+            <AlertTriangle className="h-4 w-4 text-orange-500" title="Usando proxy devido a certificado SSL" />
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
@@ -267,53 +265,35 @@ export const StatusConectividade = () => {
           </Button>
         </div>
 
-        {/* Mensagem de diagnóstico detalhada */}
+        {/* Informações de diagnóstico */}
         {!servidorOnline && status && (
           <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-xs text-red-700">
-            <div className="font-semibold mb-2">🔍 Diagnóstico do Problema:</div>
+            <div className="font-semibold mb-2">🔍 Diagnóstico:</div>
             
-            {status.errorType === 'MIXED_CONTENT' && (
-              <div className="space-y-1">
-                <div><strong>🔒 Mixed Content Error</strong></div>
-                <div>• Frontend: HTTPS (Lovable)</div>
-                <div>• Backend: HTTP (seu servidor)</div>
-                <div>• Solução: Configure HTTPS no servidor AWS ou use proxy</div>
-                <div className="mt-2 font-semibold">Comandos:</div>
-                <code className="bg-red-100 p-1 rounded">cd backend && npm run start:https</code>
-              </div>
-            )}
-            
-            {status.errorType === 'CORS_ERROR' && (
-              <div className="space-y-1">
-                <div><strong>🌐 CORS Error</strong></div>
-                <div>• Servidor não permite requisições cross-origin</div>
-                <div>• Verifique se CORS está configurado para: {window.location.origin}</div>
-              </div>
-            )}
-            
-            {status.errorType === 'NETWORK_ERROR' && (
-              <div className="space-y-1">
-                <div><strong>📡 Network Error</strong></div>
-                <div>• Não foi possível conectar ao servidor</div>
-                <div>• Verifique se está rodando na porta {porta}</div>
-                <div>• URL tentada: {backendUrl}/health</div>
-              </div>
-            )}
-            
-            <div className="mt-2 pt-2 border-t border-red-300">
-              <div><strong>Status Atual:</strong></div>
-              <div>• Porta esperada: {porta} ({protocolo})</div>
-              <div>• URL: {backendUrl}</div>
-              <div>• Ambiente: {window.location.hostname}</div>
+            <div className="space-y-1">
+              <div><strong>🌐 Ambiente:</strong> {isLovable ? 'Lovable' : 'Produção/Local'}</div>
+              <div><strong>📡 Protocolo:</strong> {protocolo}</div>
+              <div><strong>🔌 Porta:</strong> {porta}</div>
+              <div><strong>🎯 URL:</strong> {backendUrl}</div>
+              
+              {status.errorType === 'SSL_ERROR' && isLovable && (
+                <div className="mt-2 p-2 bg-orange-100 border border-orange-300 rounded">
+                  <div><strong>⚠️ Certificado SSL Inválido</strong></div>
+                  <div>• Seu servidor usa certificado auto-assinado</div>
+                  <div>• Lovable está tentando usar proxy como fallback</div>
+                  <div>• Para produção, use certificados válidos (Let's Encrypt)</div>
+                </div>
+              )}
+              
+              {status.errorType === 'NETWORK_ERROR' && (
+                <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded">
+                  <div><strong>📡 Erro de Rede</strong></div>
+                  <div>• Verifique se o servidor está rodando</div>
+                  <div>• Comando: <code>npm run start:https</code></div>
+                  <div>• Teste local: <code>curl -k https://localhost:3002/health</code></div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
-
-        {servidorOnline && !status?.conectado && status && (
-          <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
-            <strong>⚠️ Backend Online mas SEFAZ Offline:</strong> 
-            O servidor {protocolo} está funcionando mas há problemas na conectividade com SEFAZ.
-            Verifique sua conexão com a internet e configurações de certificado.
           </div>
         )}
       </CardContent>

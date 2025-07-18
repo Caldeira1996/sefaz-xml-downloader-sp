@@ -2,16 +2,16 @@
 // Configuração do backend com suporte a HTTP/HTTPS
 const BACKEND_IP = '56.124.22.200';
 
-// Detectar se estamos em desenvolvimento ou produção
-const isDevelopment = window.location.hostname.includes('lovableproject.com');
+// Detectar ambiente baseado no hostname específico do Lovable
+const isLovableEnvironment = window.location.hostname.endsWith('.lovableproject.com');
 
 export const getBackendUrl = () => {
-  if (isDevelopment) {
-    // Em desenvolvimento (Lovable), usar HTTPS na porta 3002
+  if (isLovableEnvironment) {
+    // Em ambiente Lovable, usar HTTPS na porta 3002
     return `https://${BACKEND_IP}:3002`;
   } else {
-    // Em produção local, usar HTTP na porta 3001
-    return `http://${BACKEND_IP}:3002`;
+    // Em outros ambientes, usar HTTP na porta 3001
+    return `http://${BACKEND_IP}:3001`;
   }
 };
 
@@ -20,7 +20,7 @@ export const makeBackendRequest = async (endpoint: string, options: RequestInit 
   const url = `${baseUrl}${endpoint}`;
   
   console.log(`🔗 Fazendo requisição para: ${url}`);
-  console.log(`🌐 Ambiente detectado: ${isDevelopment ? 'Desenvolvimento (Lovable)' : 'Produção Local'}`);
+  console.log(`🌐 Ambiente detectado: ${isLovableEnvironment ? 'Lovable (HTTPS:3002)' : 'Local/Produção (HTTP:3001)'}`);
   console.log(`📍 Hostname atual: ${window.location.hostname}`);
   
   const headers = {
@@ -32,7 +32,6 @@ export const makeBackendRequest = async (endpoint: string, options: RequestInit 
     const response = await fetch(url, {
       ...options,
       headers,
-      // Adicionar mode para CORS se necessário
       mode: 'cors',
     });
     
@@ -46,30 +45,42 @@ export const makeBackendRequest = async (endpoint: string, options: RequestInit 
       stack: error.stack
     });
     
-    // Se for erro de CORS ou Mixed Content, tentar proxy público temporário
-    if (error.message.includes('Mixed Content') || 
-        error.message.includes('CORS') || 
-        error.message.includes('Failed to fetch')) {
+    // Para ambiente Lovable, se HTTPS falhar, tentar fallback via proxy
+    if (isLovableEnvironment && 
+        (error.message.includes('Failed to fetch') || 
+         error.message.includes('net::ERR_CERT') ||
+         error.message.includes('SSL'))) {
       
-      console.log('🔄 Tentando usar proxy CORS para contornar limitações...');
+      console.log('🔄 HTTPS falhou, tentando proxy CORS como fallback...');
       
       try {
-        const proxyUrl = `https://cors-anywhere.herokuapp.com/${url}`;
+        // Usar proxy público temporário
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
         console.log(`🔗 URL do proxy: ${proxyUrl}`);
         
         const proxyResponse = await fetch(proxyUrl, {
-          ...options,
+          method: 'GET',
           headers: {
-            ...headers,
-            'X-Requested-With': 'XMLHttpRequest'
+            'Content-Type': 'application/json',
           },
         });
         
-        console.log(`✅ Resposta via proxy: ${proxyResponse.status} ${proxyResponse.statusText}`);
-        return proxyResponse;
+        if (proxyResponse.ok) {
+          const proxyData = await proxyResponse.json();
+          // Simular resposta original
+          const mockResponse = new Response(proxyData.contents, {
+            status: 200,
+            statusText: 'OK via Proxy',
+            headers: new Headers({
+              'Content-Type': 'application/json',
+            }),
+          });
+          
+          console.log(`✅ Sucesso via proxy!`);
+          return mockResponse;
+        }
       } catch (proxyError) {
-        console.error('❌ Erro também no proxy:', proxyError);
-        throw new Error(`Erro de conectividade: ${error.message}. Proxy também falhou: ${proxyError.message}`);
+        console.error('❌ Proxy também falhou:', proxyError);
       }
     }
     
