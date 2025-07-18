@@ -13,6 +13,64 @@ interface ConsultaRequest {
   ambiente: 'producao' | 'homologacao'
 }
 
+// Rate limiting simples (em produção, usar Redis)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT = 10; // 10 requests por minuto
+const RATE_WINDOW = 60000; // 1 minuto
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const userLimit = rateLimitMap.get(userId);
+  
+  if (!userLimit || now > userLimit.resetTime) {
+    rateLimitMap.set(userId, { count: 1, resetTime: now + RATE_WINDOW });
+    return true;
+  }
+  
+  if (userLimit.count >= RATE_LIMIT) {
+    return false;
+  }
+  
+  userLimit.count++;
+  return true;
+}
+
+function sanitizeXmlContent(xmlContent: string): string {
+  // Remover declaração XML externa para prevenir XXE
+  return xmlContent.replace(/<!DOCTYPE[^>]*>/gi, '');
+}
+
+function validateCnpj(cnpj: string): boolean {
+  const cleanCnpj = cnpj.replace(/\D/g, '');
+  if (cleanCnpj.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(cleanCnpj)) return false;
+  
+  // Validação dos dígitos verificadores
+  let sum = 0;
+  const weights1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  
+  for (let i = 0; i < 12; i++) {
+    sum += parseInt(cleanCnpj[i]) * weights1[i];
+  }
+  
+  const remainder1 = sum % 11;
+  const digit1 = remainder1 < 2 ? 0 : 11 - remainder1;
+  
+  if (parseInt(cleanCnpj[12]) !== digit1) return false;
+  
+  sum = 0;
+  const weights2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  
+  for (let i = 0; i < 13; i++) {
+    sum += parseInt(cleanCnpj[i]) * weights2[i];
+  }
+  
+  const remainder2 = sum % 11;
+  const digit2 = remainder2 < 2 ? 0 : 11 - remainder2;
+  
+  return parseInt(cleanCnpj[13]) === digit2;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -36,7 +94,39 @@ Deno.serve(async (req) => {
       throw new Error('Usuário não autenticado')
     }
 
-    const { certificadoId, cnpjConsultado, tipoConsulta, ambiente }: ConsultaRequest = await req.json()
+    // Rate limiting
+    if (!checkRateLimit(user.id)) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Muitas tentativas. Tente novamente em alguns minutos.'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 429,
+        }
+      )
+    }
+
+    const requestData: ConsultaRequest = await req.json()
+    const { certificadoId, cnpjConsultado, tipoConsulta, ambiente } = requestData
+
+    // Validações de entrada
+    if (!certificadoId || !cnpjConsultado || !tipoConsulta || !ambiente) {
+      throw new Error('Parâmetros obrigatórios não fornecidos')
+    }
+
+    if (!validateCnpj(cnpjConsultado)) {
+      throw new Error('CNPJ inválido')
+    }
+
+    if (!['manifestacao', 'download_nfe'].includes(tipoConsulta)) {
+      throw new Error('Tipo de consulta inválido')
+    }
+
+    if (!['producao', 'homologacao'].includes(ambiente)) {
+      throw new Error('Ambiente inválido')
+    }
 
     console.log(`Iniciando consulta SEFAZ: ${tipoConsulta} para CNPJ ${cnpjConsultado}`)
 
@@ -46,10 +136,16 @@ Deno.serve(async (req) => {
       .select('*')
       .eq('id', certificadoId)
       .eq('user_id', user.id)
+      .eq('ativo', true)
       .single()
 
     if (certError || !certificado) {
-      throw new Error('Certificado não encontrado ou não autorizado')
+      throw new Error('Certificado não encontrado, inativo ou não autorizado')
+    }
+
+    // Verificar se o CNPJ do certificado corresponde ao consultado
+    if (certificado.cnpj !== cnpjConsultado.replace(/\D/g, '')) {
+      throw new Error('CNPJ consultado não corresponde ao certificado')
     }
 
     // Criar registro da consulta
@@ -58,7 +154,7 @@ Deno.serve(async (req) => {
       .insert({
         user_id: user.id,
         certificado_id: certificadoId,
-        cnpj_consultado: cnpjConsultado,
+        cnpj_consultado: cnpjConsultado.replace(/\D/g, ''),
         tipo_consulta: tipoConsulta,
         status: 'processando'
       })
@@ -89,12 +185,14 @@ Deno.serve(async (req) => {
       resultado = await consultarManifestacoesPendentes(
         urls[ambiente].manifestacao,
         certificado,
-        cnpjConsultado
+        cnpjConsultado.replace(/\D/g, '')
       )
       
       if (resultado.success && resultado.data?.chavesNfe) {
-        // Baixar XMLs das notas encontradas
-        for (const chaveNfe of resultado.data.chavesNfe) {
+        // Baixar XMLs das notas encontradas (máximo 50 por vez)
+        const chavesLimitadas = resultado.data.chavesNfe.slice(0, 50);
+        
+        for (const chaveNfe of chavesLimitadas) {
           try {
             const xmlResult = await baixarXmlNfe(
               urls[ambiente].download,
@@ -103,13 +201,16 @@ Deno.serve(async (req) => {
             )
             
             if (xmlResult.success && xmlResult.xmlContent) {
+              // Sanitizar XML antes de salvar
+              const sanitizedXml = sanitizeXmlContent(xmlResult.xmlContent);
+              
               // Salvar XML no banco
               await salvarXmlNoBanco(
                 supabaseClient,
                 consulta.id,
                 user.id,
                 chaveNfe,
-                xmlResult.xmlContent
+                sanitizedXml
               )
               xmlsBaixados++
             }
@@ -149,18 +250,17 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: error.message || 'Erro interno do servidor'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+        status: 400,
       }
     )
   }
 })
 
 async function consultarManifestacoesPendentes(url: string, certificado: any, cnpj: string) {
-  // Criar SOAP envelope para consulta de manifestações
   const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
     <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
       <soap:Body>
@@ -186,20 +286,23 @@ async function consultarManifestacoesPendentes(url: string, certificado: any, cn
       body: soapEnvelope
     })
 
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+
     const xmlResponse = await response.text()
-    console.log('Resposta SEFAZ:', xmlResponse)
+    console.log('Resposta SEFAZ recebida')
 
     // Parse da resposta XML para extrair chaves das NFe
     const parser = new DOMParser()
     const doc = parser.parseFromString(xmlResponse, 'text/xml')
     
-    // Extrair chaves das NFe da resposta (implementação simplificada)
     const chavesNfe = []
     const infNFes = doc.querySelectorAll('infNFe')
     
     for (const infNFe of infNFes) {
       const chave = infNFe.getAttribute('chNFe')
-      if (chave) {
+      if (chave && /^[0-9]{44}$/.test(chave)) { // Validar formato da chave
         chavesNfe.push(chave)
       }
     }
@@ -208,7 +311,7 @@ async function consultarManifestacoesPendentes(url: string, certificado: any, cn
       success: true,
       data: {
         chavesNfe,
-        xmlResponse
+        xmlResponse: xmlResponse.substring(0, 1000) // Limitar log
       }
     }
   } catch (error) {
@@ -221,6 +324,11 @@ async function consultarManifestacoesPendentes(url: string, certificado: any, cn
 }
 
 async function baixarXmlNfe(url: string, certificado: any, chaveNfe: string) {
+  // Validar chave NFe
+  if (!/^[0-9]{44}$/.test(chaveNfe)) {
+    throw new Error('Chave NFE inválida')
+  }
+
   const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
     <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
       <soap:Body>
@@ -246,6 +354,10 @@ async function baixarXmlNfe(url: string, certificado: any, chaveNfe: string) {
       body: soapEnvelope
     })
 
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+
     const xmlContent = await response.text()
     
     return {
@@ -266,11 +378,16 @@ async function salvarXmlNoBanco(supabaseClient: any, consultaId: string, userId:
   const doc = parser.parseFromString(xmlContent, 'text/xml')
   
   // Extrair dados básicos da NFe (implementação simplificada)
-  const numeroNfe = doc.querySelector('nNF')?.textContent || ''
-  const cnpjEmitente = doc.querySelector('emit CNPJ')?.textContent || ''
-  const razaoSocialEmitente = doc.querySelector('emit xNome')?.textContent || ''
-  const dataEmissao = doc.querySelector('dhEmi')?.textContent || ''
-  const valorTotal = doc.querySelector('vNF')?.textContent || '0'
+  const numeroNfe = doc.querySelector('nNF')?.textContent?.trim() || ''
+  const cnpjEmitente = doc.querySelector('emit CNPJ')?.textContent?.trim() || ''
+  const razaoSocialEmitente = doc.querySelector('emit xNome')?.textContent?.trim() || ''
+  const dataEmissao = doc.querySelector('dhEmi')?.textContent?.trim() || ''
+  const valorTotal = doc.querySelector('vNF')?.textContent?.trim() || '0'
+
+  // Sanitizar dados extraídos
+  const sanitizedNumeroNfe = numeroNfe.replace(/[^\d]/g, '').substring(0, 20)
+  const sanitizedCnpjEmitente = cnpjEmitente.replace(/[^\d]/g, '').substring(0, 14)
+  const sanitizedRazaoSocial = razaoSocialEmitente.substring(0, 255)
 
   await supabaseClient
     .from('xmls_nfe')
@@ -278,11 +395,11 @@ async function salvarXmlNoBanco(supabaseClient: any, consultaId: string, userId:
       consulta_id: consultaId,
       user_id: userId,
       chave_nfe: chaveNfe,
-      numero_nfe: numeroNfe,
-      cnpj_emitente: cnpjEmitente,
-      razao_social_emitente: razaoSocialEmitente,
+      numero_nfe: sanitizedNumeroNfe || null,
+      cnpj_emitente: sanitizedCnpjEmitente || null,
+      razao_social_emitente: sanitizedRazaoSocial || null,
       data_emissao: dataEmissao ? new Date(dataEmissao).toISOString() : null,
-      valor_total: parseFloat(valorTotal),
+      valor_total: parseFloat(valorTotal) || 0,
       xml_content: xmlContent,
       status_manifestacao: 'pendente'
     })

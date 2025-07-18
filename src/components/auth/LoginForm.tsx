@@ -1,9 +1,11 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeInput } from '@/utils/cnpjValidation';
 
 export const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -14,33 +16,99 @@ export const LoginForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validação básica de entrada
+    const sanitizedEmail = sanitizeInput(email);
+    const sanitizedPassword = password.trim();
+    
+    if (!sanitizedEmail || !sanitizedPassword) {
+      toast({
+        title: "Erro de validação",
+        description: "Email e senha são obrigatórios.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validação de email básica
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(sanitizedEmail)) {
+      toast({
+        title: "Erro de validação",
+        description: "Por favor, insira um email válido.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validação de senha
+    if (sanitizedPassword.length < 6) {
+      toast({
+        title: "Erro de validação",
+        description: "A senha deve ter pelo menos 6 caracteres.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
       if (isSignUp) {
+        // Configurar URL de redirect correta para confirmação de email
+        const redirectUrl = `${window.location.origin}/`;
+        
         const { error } = await supabase.auth.signUp({
-          email,
-          password,
+          email: sanitizedEmail,
+          password: sanitizedPassword,
+          options: {
+            emailRedirectTo: redirectUrl
+          }
         });
-        if (error) throw error;
-        toast({
-          title: "Cadastro realizado!",
-          description: "Verifique seu email para confirmar a conta.",
-        });
+        
+        if (error) {
+          if (error.message.includes('already registered')) {
+            toast({
+              title: "Conta já existe",
+              description: "Este email já está cadastrado. Tente fazer login.",
+              variant: "destructive",
+            });
+          } else {
+            throw error;
+          }
+        } else {
+          toast({
+            title: "Cadastro realizado!",
+            description: "Verifique seu email para confirmar a conta.",
+          });
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+          email: sanitizedEmail,
+          password: sanitizedPassword,
         });
-        if (error) throw error;
-        toast({
-          title: "Login realizado com sucesso!",
-        });
+        
+        if (error) {
+          if (error.message.includes('Invalid login credentials')) {
+            toast({
+              title: "Credenciais inválidas",
+              description: "Email ou senha incorretos.",
+              variant: "destructive",
+            });
+          } else {
+            throw error;
+          }
+        } else {
+          toast({
+            title: "Login realizado com sucesso!",
+          });
+        }
       }
     } catch (error: any) {
+      console.error('Erro de autenticação:', error);
       toast({
         title: "Erro",
-        description: error.message,
+        description: error.message || "Ocorreu um erro inesperado.",
         variant: "destructive",
       });
     } finally {
@@ -65,15 +133,18 @@ export const LoginForm = () => {
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                maxLength={255}
                 required
               />
             </div>
             <div>
               <Input
                 type="password"
-                placeholder="Senha"
+                placeholder="Senha (mínimo 6 caracteres)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                minLength={6}
+                maxLength={128}
                 required
               />
             </div>
