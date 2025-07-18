@@ -14,7 +14,154 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      certificados: {
+        Row: {
+          ambiente: string
+          ativo: boolean
+          certificado_base64: string
+          cnpj: string
+          created_at: string
+          id: string
+          nome: string
+          senha_certificado: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ambiente?: string
+          ativo?: boolean
+          certificado_base64: string
+          cnpj: string
+          created_at?: string
+          id?: string
+          nome: string
+          senha_certificado: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ambiente?: string
+          ativo?: boolean
+          certificado_base64?: string
+          cnpj?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          senha_certificado?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      consultas_sefaz: {
+        Row: {
+          certificado_id: string
+          cnpj_consultado: string
+          created_at: string
+          erro_mensagem: string | null
+          id: string
+          resultado: Json | null
+          status: string
+          tipo_consulta: string
+          total_xmls: number | null
+          updated_at: string
+          user_id: string
+          xmls_baixados: number | null
+        }
+        Insert: {
+          certificado_id: string
+          cnpj_consultado: string
+          created_at?: string
+          erro_mensagem?: string | null
+          id?: string
+          resultado?: Json | null
+          status?: string
+          tipo_consulta: string
+          total_xmls?: number | null
+          updated_at?: string
+          user_id: string
+          xmls_baixados?: number | null
+        }
+        Update: {
+          certificado_id?: string
+          cnpj_consultado?: string
+          created_at?: string
+          erro_mensagem?: string | null
+          id?: string
+          resultado?: Json | null
+          status?: string
+          tipo_consulta?: string
+          total_xmls?: number | null
+          updated_at?: string
+          user_id?: string
+          xmls_baixados?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultas_sefaz_certificado_id_fkey"
+            columns: ["certificado_id"]
+            isOneToOne: false
+            referencedRelation: "certificados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      xmls_nfe: {
+        Row: {
+          chave_nfe: string
+          cnpj_emitente: string | null
+          consulta_id: string
+          created_at: string
+          data_emissao: string | null
+          id: string
+          numero_nfe: string | null
+          razao_social_emitente: string | null
+          status_manifestacao: string | null
+          updated_at: string
+          user_id: string
+          valor_total: number | null
+          xml_content: string
+        }
+        Insert: {
+          chave_nfe: string
+          cnpj_emitente?: string | null
+          consulta_id: string
+          created_at?: string
+          data_emissao?: string | null
+          id?: string
+          numero_nfe?: string | null
+          razao_social_emitente?: string | null
+          status_manifestacao?: string | null
+          updated_at?: string
+          user_id: string
+          valor_total?: number | null
+          xml_content: string
+        }
+        Update: {
+          chave_nfe?: string
+          cnpj_emitente?: string | null
+          consulta_id?: string
+          created_at?: string
+          data_emissao?: string | null
+          id?: string
+          numero_nfe?: string | null
+          razao_social_emitente?: string | null
+          status_manifestacao?: string | null
+          updated_at?: string
+          user_id?: string
+          valor_total?: number | null
+          xml_content?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "xmls_nfe_consulta_id_fkey"
+            columns: ["consulta_id"]
+            isOneToOne: false
+            referencedRelation: "consultas_sefaz"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

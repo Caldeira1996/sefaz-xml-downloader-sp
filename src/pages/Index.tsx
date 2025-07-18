@@ -1,12 +1,90 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import React, { useState } from 'react';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { LoginForm } from '@/components/auth/LoginForm';
+import { CertificadoForm } from '@/components/sefaz/CertificadoForm';
+import { ConsultaForm } from '@/components/sefaz/ConsultaForm';
+import { XmlsList } from '@/components/sefaz/XmlsList';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LogOut, FileText, Settings, Search } from 'lucide-react';
 
 const Index = () => {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+  const { user, loading, signOut } = useAuth();
+  const [refreshXmls, setRefreshXmls] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
       </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginForm />;
+  }
+
+  const handleConsultaIniciada = () => {
+    setRefreshXmls(!refreshXmls);
+  };
+
+  const handleCertificadoSalvo = () => {
+    // Trigger para recarregar dados se necessário
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b bg-card">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <FileText className="h-6 w-6 text-primary" />
+            <h1 className="text-xl font-bold">XML PRO - SEFAZ SP</h1>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-muted-foreground">{user.email}</span>
+            <Button variant="outline" size="sm" onClick={signOut}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Sair
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-8">
+        <Tabs defaultValue="consulta" className="space-y-6">
+          <TabsList className="grid grid-cols-3 w-full max-w-md mx-auto">
+            <TabsTrigger value="consulta" className="flex items-center gap-2">
+              <Search className="h-4 w-4" />
+              Consulta
+            </TabsTrigger>
+            <TabsTrigger value="certificados" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Certificados
+            </TabsTrigger>
+            <TabsTrigger value="xmls" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              XMLs
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="consulta" className="space-y-6">
+            <ConsultaForm onConsultaIniciada={handleConsultaIniciada} />
+          </TabsContent>
+
+          <TabsContent value="certificados" className="space-y-6">
+            <CertificadoForm onSuccess={handleCertificadoSalvo} />
+          </TabsContent>
+
+          <TabsContent value="xmls" className="space-y-6">
+            <XmlsList shouldRefresh={refreshXmls} />
+          </TabsContent>
+        </Tabs>
+      </main>
     </div>
   );
 };
