@@ -22,6 +22,7 @@ export type Database = {
           cnpj: string
           created_at: string
           id: string
+          is_principal: boolean | null
           nome: string
           senha_certificado: string
           updated_at: string
@@ -34,6 +35,7 @@ export type Database = {
           cnpj: string
           created_at?: string
           id?: string
+          is_principal?: boolean | null
           nome: string
           senha_certificado: string
           updated_at?: string
@@ -46,6 +48,7 @@ export type Database = {
           cnpj?: string
           created_at?: string
           id?: string
+          is_principal?: boolean | null
           nome?: string
           senha_certificado?: string
           updated_at?: string

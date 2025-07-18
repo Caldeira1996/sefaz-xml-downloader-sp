@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { StatusConectividade } from './StatusConectividade';
-import { AlertCircle, CheckCircle, Info, Calendar as CalendarIcon } from 'lucide-react';
+import { AlertCircle, CheckCircle, Info, Calendar as CalendarIcon, ShieldCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +21,7 @@ interface Certificado {
   nome: string;
   cnpj: string;
   ambiente: string;
+  is_principal: boolean;
 }
 
 export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () => void }) => {
@@ -44,12 +45,19 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
     try {
       const { data, error } = await supabase
         .from('certificados')
-        .select('id, nome, cnpj, ambiente')
+        .select('id, nome, cnpj, ambiente, is_principal')
         .eq('ativo', true)
+        .order('is_principal', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       setCertificados(data || []);
+      
+      // Auto-selecionar certificado principal se existir
+      const certificadoPrincipal = data?.find(cert => cert.is_principal);
+      if (certificadoPrincipal && !certificadoSelecionado) {
+        setCertificadoSelecionado(certificadoPrincipal.id);
+      }
     } catch (error: any) {
       toast({
         title: "Erro ao carregar certificados",
@@ -158,14 +166,19 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
               <SelectContent>
                 {certificados.map((cert) => (
                   <SelectItem key={cert.id} value={cert.id}>
-                    {cert.nome} - {formatCnpj(cert.cnpj)} ({cert.ambiente})
+                    <div className="flex items-center gap-2">
+                      {cert.is_principal && <ShieldCheck className="h-4 w-4 text-primary" />}
+                      <span>{cert.nome} - {formatCnpj(cert.cnpj)} ({cert.ambiente})</span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {certificadoSelecionadoObj && (
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                {certificadoSelecionadoObj.is_principal && <ShieldCheck className="h-3 w-3 text-primary" />}
                 Ambiente: <span className="font-medium">{certificadoSelecionadoObj.ambiente}</span>
+                {certificadoSelecionadoObj.is_principal && <span className="text-primary font-medium">(Principal)</span>}
               </p>
             )}
           </div>
