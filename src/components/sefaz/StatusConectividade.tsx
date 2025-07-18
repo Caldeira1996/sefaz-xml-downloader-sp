@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { CheckCircle, XCircle, Loader2, RefreshCw, Wifi, WifiOff, Server } from 'lucide-react';
+import { makeBackendRequest } from '@/utils/backendProxy';
 
 interface StatusConectividade {
   conectado: boolean;
@@ -13,9 +15,6 @@ interface StatusConectividade {
   detalhes?: string;
   servidor?: string;
 }
-
-// URL do servidor backend AWS
-const BACKEND_URL = 'http://56.124.22.200:3001';
 
 export const StatusConectividade = () => {
   const [status, setStatus] = useState<StatusConectividade | null>(null);
@@ -26,7 +25,7 @@ export const StatusConectividade = () => {
 
   const verificarServidorBackend = async () => {
     try {
-      const response = await fetch(`${BACKEND_URL}/health`);
+      const response = await makeBackendRequest('/health');
       const data = await response.json();
       setServidorOnline(response.ok);
       return response.ok;
@@ -65,7 +64,7 @@ export const StatusConectividade = () => {
         return;
       }
 
-      const response = await fetch(`${BACKEND_URL}/api/sefaz/status`, {
+      const response = await makeBackendRequest('/api/sefaz/status', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -221,8 +220,11 @@ export const StatusConectividade = () => {
 
         {!servidorOnline && (
           <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
-            <strong>🔌 Servidor Backend Offline:</strong> Inicie o servidor Node.js executando:
-            <code className="block mt-1 bg-orange-100 p-1 rounded">cd backend && npm run dev</code>
+            <strong>🔌 Mixed Content Error:</strong> Sua aplicação HTTPS não pode acessar HTTP.
+            <br />
+            <strong>Solução temporária:</strong> Usando proxy CORS.
+            <br />
+            <strong>Para produção:</strong> Configure HTTPS no servidor AWS.
           </div>
         )}
 

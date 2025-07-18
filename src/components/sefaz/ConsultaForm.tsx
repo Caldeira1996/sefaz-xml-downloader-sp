@@ -15,6 +15,7 @@ import { StatusConectividade } from './StatusConectividade';
 import { AlertCircle, CheckCircle, Info, Calendar as CalendarIcon, ShieldCheck, Server } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { makeBackendRequest } from '@/utils/backendProxy';
 
 interface Certificado {
   id: string;
@@ -23,9 +24,6 @@ interface Certificado {
   ambiente: string;
   is_principal: boolean;
 }
-
-// URL do servidor backend AWS
-const BACKEND_URL = 'http://56.124.22.200:3001';
 
 export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () => void }) => {
   const [certificados, setCertificados] = useState<Certificado[]>([]);
@@ -106,7 +104,7 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
       
       console.log('Iniciando consulta SEFAZ via backend...', requestBody);
       
-      const response = await fetch(`${BACKEND_URL}/api/sefaz/consulta`, {
+      const response = await makeBackendRequest('/api/sefaz/consulta', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -145,7 +143,7 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
       let errorMessage = error.message;
       
       if (error.message.includes('Failed to fetch')) {
-        errorMessage = 'Servidor backend offline. Inicie o servidor Node.js na porta 3001.';
+        errorMessage = 'Erro de conectividade. Verifique se o servidor backend está online e se HTTPS está configurado.';
       }
       
       toast({
@@ -190,8 +188,8 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription>
-              <strong>Nova Arquitetura:</strong> As consultas agora são processadas via servidor backend Node.js 
-              que possui acesso aos certificados digitais. Certifique-se de que o servidor backend esteja rodando.
+              <strong>Mixed Content Fix:</strong> Usando proxy CORS temporário para contornar limitações HTTPS/HTTP.
+              Para produção, configure HTTPS no servidor AWS.
             </AlertDescription>
           </Alert>
 
