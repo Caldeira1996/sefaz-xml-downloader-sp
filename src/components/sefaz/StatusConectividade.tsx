@@ -15,6 +15,7 @@ interface StatusConectividade {
   detalhes?: string;
   servidor?: string;
   errorType?: string;
+  urlUsada?: string;
 }
 
 export const StatusConectividade = () => {
@@ -33,11 +34,11 @@ export const StatusConectividade = () => {
         const data = await response.json();
         console.log('✅ Servidor backend online:', data);
         setServidorOnline(true);
-        return true;
+        return { success: true, data, url: response.url };
       } else {
         console.error('❌ Servidor retornou erro:', response.status, response.statusText);
         setServidorOnline(false);
-        return false;
+        return { success: false, error: `HTTP ${response.status}`, url: response.url };
       }
     } catch (error) {
       console.error('❌ Servidor backend offline:', error);
@@ -53,9 +54,11 @@ export const StatusConectividade = () => {
         errorType = 'CORS_ERROR';
       } else if (error.message.includes('Failed to fetch')) {
         errorType = 'NETWORK_ERROR';
+      } else if (error.message.includes('ERR_CONNECTION_TIMED_OUT')) {
+        errorType = 'TIMEOUT_ERROR';
       }
       
-      return { error: error.message, type: errorType };
+      return { success: false, error: error.message, type: errorType };
     }
   };
 
@@ -70,27 +73,25 @@ export const StatusConectividade = () => {
       // Primeiro verificar se o servidor backend está online
       const backendResult = await verificarServidorBackend();
       
-      if (backendResult !== true) {
+      if (!backendResult.success) {
         const backendUrl = getBackendUrl();
         const isHttps = backendUrl.startsWith('https');
-        const porta = isHttps ? '3002' : '3001';
-        const protocolo = isHttps ? 'HTTPS' : 'HTTP';
-        const isLovable = window.location.hostname.endsWith('.lovableproject.com');
+        const isLovable = window.location.hostname.endsWith('.lovableproject.com') || window.location.hostname.endsWith('.lovable.app');
         
-        let detalhes = `Servidor backend offline (${protocolo}:${porta}).`;
+        let detalhes = `Servidor backend offline.`;
         
-        if (typeof backendResult === 'object' && backendResult.error) {
-          if (backendResult.type === 'SSL_ERROR') {
-            detalhes = `⚠️ Erro SSL/TLS: Certificado inválido ou auto-assinado. ${isLovable ? 'Usando proxy como fallback.' : 'Configure certificados válidos.'}`;
-          } else if (backendResult.type === 'MIXED_CONTENT') {
-            detalhes = `Mixed Content Error: Frontend HTTPS não pode acessar servidor HTTP.`;
-          } else if (backendResult.type === 'CORS_ERROR') {
-            detalhes = `CORS Error: Servidor não permite requisições cross-origin.`;
-          } else if (backendResult.type === 'NETWORK_ERROR') {
-            detalhes = `Network Error: Não foi possível conectar ao servidor na porta ${porta}.`;
-          } else {
-            detalhes = `Erro de conexão: ${backendResult.error}`;
-          }
+        if (backendResult.type === 'TIMEOUT_ERROR') {
+          detalhes = `⏱️ Timeout ao conectar: O servidor não responde na porta esperada. Verifique firewall e Security Groups da AWS.`;
+        } else if (backendResult.type === 'SSL_ERROR') {
+          detalhes = `⚠️ Erro SSL/TLS: Certificado inválido ou auto-assinado.`;
+        } else if (backendResult.type === 'MIXED_CONTENT') {
+          detalhes = `Mixed Content Error: Frontend HTTPS não pode acessar servidor HTTP.`;
+        } else if (backendResult.type === 'CORS_ERROR') {
+          detalhes = `CORS Error: Servidor não permite requisições cross-origin.`;
+        } else if (backendResult.type === 'NETWORK_ERROR') {
+          detalhes = `Network Error: Não foi possível conectar ao servidor.`;
+        } else {
+          detalhes = `Erro de conexão: ${backendResult.error}`;
         }
         
         setStatus({
@@ -99,7 +100,8 @@ export const StatusConectividade = () => {
           ultimaVerificacao: new Date().toLocaleString('pt-BR'),
           detalhes,
           servidor: 'Offline',
-          errorType: typeof backendResult === 'object' ? backendResult.type : 'CONNECTION_ERROR'
+          errorType: backendResult.type,
+          urlUsada: backendUrl
         });
 
         toast({
@@ -129,23 +131,22 @@ export const StatusConectividade = () => {
       }
 
       const data = await response.json();
-      const backendUrl = getBackendUrl();
-      const protocolo = backendUrl.startsWith('https') ? 'HTTPS' : 'HTTP';
       
       setStatus({
         conectado: data.success,
         ambiente: 'Produção',
         ultimaVerificacao: new Date().toLocaleString('pt-BR'),
         detalhes: data.success 
-          ? `Servidor SEFAZ acessível via backend ${protocolo} (${data.conectividade?.statusCode})` 
+          ? `✅ Conectado via ${backendResult.url || 'backend'} (${data.conectividade?.statusCode})` 
           : data.error,
-        servidor: 'Online'
+        servidor: 'Online',
+        urlUsada: backendResult.url
       });
 
       if (data.success) {
         toast({
           title: "✅ Conectividade OK",
-          description: `Servidor backend ${protocolo} conectado com SEFAZ SP`,
+          description: `Backend conectado com SEFAZ SP via ${backendResult.url}`,
         });
       } else {
         toast({
@@ -187,8 +188,6 @@ export const StatusConectividade = () => {
 
   const backendUrl = getBackendUrl();
   const isHttps = backendUrl.startsWith('https');
-  const porta = isHttps ? '3002' : '3001';
-  const protocolo = isHttps ? 'HTTPS' : 'HTTP';
   const isLovable = window.location.hostname.endsWith('.lovableproject.com') || window.location.hostname.endsWith('.lovable.app');
 
   return (
@@ -202,7 +201,7 @@ export const StatusConectividade = () => {
           )}
           Status SEFAZ SP
           <Server className={`h-4 w-4 ml-auto ${servidorOnline ? 'text-green-500' : 'text-red-500'}`} />
-          {isLovable && status?.errorType === 'SSL_ERROR' && (
+          {isLovable && status?.errorType === 'TIMEOUT_ERROR' && (
             <AlertTriangle className="h-4 w-4 text-orange-500" />
           )}
         </CardTitle>
@@ -250,6 +249,12 @@ export const StatusConectividade = () => {
                   {status.detalhes}
                 </p>
               )}
+
+              {status?.urlUsada && (
+                <p className="text-xs text-blue-600 mt-1">
+                  URL: {status.urlUsada}
+                </p>
+              )}
             </div>
           </div>
 
@@ -272,16 +277,24 @@ export const StatusConectividade = () => {
             
             <div className="space-y-1">
               <div><strong>🌐 Ambiente:</strong> {isLovable ? 'Lovable' : 'Produção/Local'}</div>
-              <div><strong>📡 Protocolo:</strong> {protocolo}</div>
-              <div><strong>🔌 Porta:</strong> {porta}</div>
-              <div><strong>🎯 URL:</strong> {backendUrl}</div>
+              <div><strong>📡 Protocolo:</strong> {isHttps ? 'HTTPS' : 'HTTP'}</div>
+              <div><strong>🎯 URL Testada:</strong> {status.urlUsada || backendUrl}</div>
               
-              {status.errorType === 'SSL_ERROR' && isLovable && (
+              {status.errorType === 'TIMEOUT_ERROR' && (
+                <div className="mt-2 p-2 bg-orange-100 border border-orange-300 rounded">
+                  <div><strong>⏱️ Erro de Timeout</strong></div>
+                  <div>• Verifique Security Groups da AWS (porta 443 e 3002)</div>
+                  <div>• Verifique firewall: <code>sudo ufw status</code></div>
+                  <div>• Libere portas: <code>sudo ufw allow 443 && sudo ufw allow 3002</code></div>
+                  <div>• Configure nginx para proxy reverso na porta 443</div>
+                </div>
+              )}
+              
+              {status.errorType === 'SSL_ERROR' && (
                 <div className="mt-2 p-2 bg-orange-100 border border-orange-300 rounded">
                   <div><strong>⚠️ Certificado SSL Inválido</strong></div>
-                  <div>• Seu servidor usa certificado auto-assinado</div>
-                  <div>• Lovable está tentando usar proxy como fallback</div>
-                  <div>• Para produção, use certificados válidos (Let's Encrypt)</div>
+                  <div>• Use certificado válido (Let's Encrypt)</div>
+                  <div>• Configure nginx com SSL adequado</div>
                 </div>
               )}
               
