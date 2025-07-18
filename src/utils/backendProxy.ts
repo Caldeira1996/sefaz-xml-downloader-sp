@@ -1,18 +1,13 @@
 
-// Configuração do backend com suporte a HTTP/HTTPS
-const BACKEND_IP = '56.124.22.200';
+// Configuração do backend com suporte a HTTPS
+const BACKEND_IP = '56.124.22.200:3002'; // Porta 3002 para HTTPS
 
 // Detectar se estamos em desenvolvimento ou produção
 const isDevelopment = window.location.hostname.includes('lovableproject.com');
 
 export const getBackendUrl = () => {
-  if (isDevelopment) {
-    // Em desenvolvimento, usar HTTP na porta 3001
-    return `http://${BACKEND_IP}:3001`;
-  } else {
-    // Em produção, usar HTTPS na porta 3002
-    return `https://${BACKEND_IP}:3002`;
-  }
+  // Sempre tentar HTTPS primeiro
+  return `https://${BACKEND_IP}`;
 };
 
 export const makeBackendRequest = async (endpoint: string, options: RequestInit = {}) => {
