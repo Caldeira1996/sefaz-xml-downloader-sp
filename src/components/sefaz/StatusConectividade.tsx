@@ -14,6 +14,7 @@ interface StatusConectividade {
   ultimaVerificacao: string;
   detalhes?: string;
   servidor?: string;
+  errorType?: string;
 }
 
 export const StatusConectividade = () => {
@@ -25,14 +26,34 @@ export const StatusConectividade = () => {
 
   const verificarServidorBackend = async () => {
     try {
+      console.log('🔍 Verificando servidor backend...');
       const response = await makeBackendRequest('/health');
-      const data = await response.json();
-      setServidorOnline(response.ok);
-      return response.ok;
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Servidor backend online:', data);
+        setServidorOnline(true);
+        return true;
+      } else {
+        console.error('❌ Servidor retornou erro:', response.status, response.statusText);
+        setServidorOnline(false);
+        return false;
+      }
     } catch (error) {
-      console.error('Servidor backend offline:', error);
+      console.error('❌ Servidor backend offline:', error);
       setServidorOnline(false);
-      return false;
+      
+      // Identificar o tipo de erro
+      let errorType = 'CONNECTION_ERROR';
+      if (error.message.includes('Mixed Content')) {
+        errorType = 'MIXED_CONTENT';
+      } else if (error.message.includes('CORS')) {
+        errorType = 'CORS_ERROR';
+      } else if (error.message.includes('Failed to fetch')) {
+        errorType = 'NETWORK_ERROR';
+      }
+      
+      return { error: error.message, type: errorType };
     }
   };
 
@@ -45,30 +66,46 @@ export const StatusConectividade = () => {
       console.log('🔍 Verificando conectividade com SEFAZ via backend...');
       
       // Primeiro verificar se o servidor backend está online
-      const backendOnline = await verificarServidorBackend();
+      const backendResult = await verificarServidorBackend();
       
-      if (!backendOnline) {
+      if (backendResult !== true) {
         const backendUrl = getBackendUrl();
         const isHttps = backendUrl.startsWith('https');
         const porta = isHttps ? '3002' : '3001';
         const protocolo = isHttps ? 'HTTPS' : 'HTTP';
         
+        let detalhes = `Servidor backend offline (${protocolo}:${porta}).`;
+        
+        if (typeof backendResult === 'object' && backendResult.error) {
+          if (backendResult.type === 'MIXED_CONTENT') {
+            detalhes = `Mixed Content Error: Frontend HTTPS não pode acessar servidor HTTP. Configure HTTPS no servidor ou use proxy.`;
+          } else if (backendResult.type === 'CORS_ERROR') {
+            detalhes = `CORS Error: Servidor não permite requisições cross-origin. Verifique configuração CORS.`;
+          } else if (backendResult.type === 'NETWORK_ERROR') {
+            detalhes = `Network Error: Não foi possível conectar ao servidor. Verifique se está rodando na porta ${porta}.`;
+          } else {
+            detalhes = `Erro de conexão: ${backendResult.error}`;
+          }
+        }
+        
         setStatus({
           conectado: false,
           ambiente: 'N/A',
           ultimaVerificacao: new Date().toLocaleString('pt-BR'),
-          detalhes: `Servidor backend offline. Inicie o servidor ${protocolo} Node.js na porta ${porta}.`,
-          servidor: 'Offline'
+          detalhes,
+          servidor: 'Offline',
+          errorType: typeof backendResult === 'object' ? backendResult.type : 'CONNECTION_ERROR'
         });
 
         toast({
           title: "🔌 Servidor Backend Offline",
-          description: `Inicie o servidor ${protocolo} Node.js para conectar com SEFAZ`,
+          description: detalhes,
           variant: "destructive",
         });
         return;
       }
 
+      // Se chegou aqui, o backend está online, agora testar SEFAZ
       const response = await makeBackendRequest('/api/sefaz/status', {
         method: 'POST',
         headers: {
@@ -80,7 +117,7 @@ export const StatusConectividade = () => {
         })
       });
 
-      console.log('📡 Resposta da verificação:', response);
+      console.log('📡 Resposta da verificação SEFAZ:', response);
 
       if (!response.ok) {
         throw new Error(`Erro HTTP: ${response.status}`);
@@ -230,21 +267,52 @@ export const StatusConectividade = () => {
           </Button>
         </div>
 
-        {!servidorOnline && (
-          <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
-            <strong>🔌 Servidor Backend Offline:</strong> Inicie o servidor {protocolo} executando:
-            <br />
-            <code>cd backend && npm run {isHttps ? 'start:https' : 'start'}</code>
-            <br />
-            <strong>Porta:</strong> {porta} ({protocolo})
-            <br />
-            <strong>URL:</strong> {backendUrl}
+        {/* Mensagem de diagnóstico detalhada */}
+        {!servidorOnline && status && (
+          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+            <div className="font-semibold mb-2">🔍 Diagnóstico do Problema:</div>
+            
+            {status.errorType === 'MIXED_CONTENT' && (
+              <div className="space-y-1">
+                <div><strong>🔒 Mixed Content Error</strong></div>
+                <div>• Frontend: HTTPS (Lovable)</div>
+                <div>• Backend: HTTP (seu servidor)</div>
+                <div>• Solução: Configure HTTPS no servidor AWS ou use proxy</div>
+                <div className="mt-2 font-semibold">Comandos:</div>
+                <code className="bg-red-100 p-1 rounded">cd backend && npm run start:https</code>
+              </div>
+            )}
+            
+            {status.errorType === 'CORS_ERROR' && (
+              <div className="space-y-1">
+                <div><strong>🌐 CORS Error</strong></div>
+                <div>• Servidor não permite requisições cross-origin</div>
+                <div>• Verifique se CORS está configurado para: {window.location.origin}</div>
+              </div>
+            )}
+            
+            {status.errorType === 'NETWORK_ERROR' && (
+              <div className="space-y-1">
+                <div><strong>📡 Network Error</strong></div>
+                <div>• Não foi possível conectar ao servidor</div>
+                <div>• Verifique se está rodando na porta {porta}</div>
+                <div>• URL tentada: {backendUrl}/health</div>
+              </div>
+            )}
+            
+            <div className="mt-2 pt-2 border-t border-red-300">
+              <div><strong>Status Atual:</strong></div>
+              <div>• Porta esperada: {porta} ({protocolo})</div>
+              <div>• URL: {backendUrl}</div>
+              <div>• Ambiente: {window.location.hostname}</div>
+            </div>
           </div>
         )}
 
         {servidorOnline && !status?.conectado && status && (
-          <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
-            <strong>⚠️ Atenção:</strong> Backend {protocolo} online mas há problemas na conectividade com SEFAZ.
+          <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
+            <strong>⚠️ Backend Online mas SEFAZ Offline:</strong> 
+            O servidor {protocolo} está funcionando mas há problemas na conectividade com SEFAZ.
             Verifique sua conexão com a internet e configurações de certificado.
           </div>
         )}
