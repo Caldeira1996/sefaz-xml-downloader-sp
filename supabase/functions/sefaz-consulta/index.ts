@@ -18,7 +18,7 @@ interface ConsultaRequest {
 
 // Rate limiting simples (em produção, usar Redis)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT = 10; // 10 requests por minuto
+const RATE_LIMIT = 5; // Reduzir para 5 requests por minuto
 const RATE_WINDOW = 60000; // 1 minuto
 
 function checkRateLimit(userId: string): boolean {
@@ -348,124 +348,184 @@ async function consultarManifestacoesPendentes(
     console.log(`CNPJ consultado: ${cnpj}, Ambiente: ${ambiente} (${tpAmb})`)
     console.log(`SOAP Envelope:`, soapEnvelope.substring(0, 500) + '...')
     
-    // Tentar diferentes abordagens de conectividade
+    // Configurações melhoradas para conectividade
     const fetchOptions = {
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
         'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeConsultaDest/nfeConsultaNFDest',
-        'User-Agent': 'SEFAZ-SP-Consulta/1.0',
-        'Accept': '*/*',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'text/xml, application/soap+xml, application/xml',
+        'Accept-Encoding': 'gzip, deflate',
+        'Connection': 'keep-alive',
+        'Cache-Control': 'no-cache'
       },
       body: soapEnvelope
     }
 
-    console.log('Tentativa 1: Requisição direta')
-    let response = await fetch(url, fetchOptions)
+    console.log('Tentativa 1: Requisição com headers completos')
     
-    if (!response.ok) {
-      console.log(`Tentativa 1 falhou: ${response.status} ${response.statusText}`)
+    // Configurar timeout para 30 segundos
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    
+    try {
+      const response = await fetch(url, {
+        ...fetchOptions,
+        signal: controller.signal
+      });
       
-      // Tentativa 2: sem alguns headers
-      console.log('Tentativa 2: Headers simplificados')
-      const simpleOptions = {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/xml',
-          'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeConsultaDest/nfeConsultaNFDest'
-        },
-        body: soapEnvelope
-      }
+      clearTimeout(timeoutId);
       
-      response = await fetch(url, simpleOptions)
-    }
+      console.log(`Status da resposta: ${response.status} ${response.statusText}`)
+      console.log(`Headers da resposta:`, JSON.stringify([...response.headers.entries()]))
 
-    console.log(`Status final da resposta: ${response.status} ${response.statusText}`)
-    console.log(`Headers da resposta:`, JSON.stringify([...response.headers.entries()]))
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`Erro HTTP final: ${response.status} - ${errorText.substring(0, 500)}`)
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
-
-    const xmlResponse = await response.text()
-    console.log(`Resposta recebida (primeiros 1000 chars): ${xmlResponse.substring(0, 1000)}`)
-
-    // Parse da resposta XML para extrair informações
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(xmlResponse, 'text/xml')
-    
-    // Verificar se há erros na resposta
-    const faultString = doc.querySelector('faultstring')?.textContent
-    if (faultString) {
-      console.error(`Erro SOAP: ${faultString}`)
-      diagnostico.soapError = faultString;
-      throw new Error(`Erro SOAP: ${faultString}`)
-    }
-
-    // Procurar por chaves de NFe na resposta
-    const chavesNfe = []
-    
-    // Tentar diferentes seletores para encontrar as chaves
-    const possibleSelectors = [
-      'chNFe',
-      'infNFe',
-      'nfe chNFe',
-      'retConsNFeDest chNFe',
-      'resNFe chNFe'
-    ]
-    
-    for (const selector of possibleSelectors) {
-      const elements = doc.querySelectorAll(selector)
-      console.log(`Seletor '${selector}' encontrou ${elements.length} elementos`)
-      
-      for (const element of elements) {
-        let chave = element.textContent?.trim()
-        if (!chave && element.hasAttribute('chNFe')) {
-          chave = element.getAttribute('chNFe')
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`Erro HTTP: ${response.status} - ${errorText.substring(0, 500)}`)
+        
+        // Se der erro 405 ou similar, tentar sem alguns headers
+        if (response.status === 405 || response.status === 400) {
+          console.log('Tentativa 2: Headers simplificados')
+          const simpleOptions = {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'text/xml',
+              'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeConsultaDest/nfeConsultaNFDest'
+            },
+            body: soapEnvelope
+          }
+          
+          const controller2 = new AbortController();
+          const timeoutId2 = setTimeout(() => controller2.abort(), 30000);
+          
+          try {
+            const response2 = await fetch(url, {
+              ...simpleOptions,
+              signal: controller2.signal
+            });
+            
+            clearTimeout(timeoutId2);
+            
+            if (!response2.ok) {
+              const errorText2 = await response2.text()
+              throw new Error(`HTTP ${response2.status}: ${response2.statusText} - ${errorText2.substring(0, 200)}`)
+            }
+            
+            const xmlResponse = await response2.text()
+            return parseResponse(xmlResponse, diagnostico)
+            
+          } catch (error2) {
+            clearTimeout(timeoutId2);
+            throw error2;
+          }
         }
         
-        if (chave && /^[0-9]{44}$/.test(chave)) {
-          chavesNfe.push(chave)
-          console.log(`Chave NFe encontrada: ${chave}`)
-        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
+
+      const xmlResponse = await response.text()
+      return parseResponse(xmlResponse, diagnostico)
+      
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      if (error.name === 'AbortError') {
+        throw new Error('Timeout: A requisição demorou mais de 30 segundos')
+      }
+      
+      throw error;
     }
 
-    // Se não encontrou chaves, verificar códigos de retorno
-    const cStat = doc.querySelector('cStat')?.textContent
-    const xMotivo = doc.querySelector('xMotivo')?.textContent
-    
-    console.log(`Código de status: ${cStat}, Motivo: ${xMotivo}`)
-    diagnostico.cStat = cStat;
-    diagnostico.xMotivo = xMotivo;
-
-    if (cStat && cStat !== '138') { // 138 = consulta realizada com sucesso
-      console.log(`Status diferente de sucesso: ${cStat} - ${xMotivo}`)
-    }
-
-    return {
-      success: true,
-      data: {
-        chavesNfe: [...new Set(chavesNfe)], // Remove duplicatas
-        codigoStatus: cStat,
-        motivo: xMotivo,
-        xmlResponse: xmlResponse.substring(0, 2000) // Limitar log
-      },
-      diagnostico
-    }
   } catch (error) {
     console.error('Erro na consulta SEFAZ:', error)
     diagnostico.error = error.message;
+    
+    // Adicionar informações de conectividade
+    const connectivityInfo = {
+      errorType: error.name,
+      possibleCause: error.message.includes('timeout') ? 'Timeout de rede' :
+                     error.message.includes('DNS') ? 'Erro de resolução DNS' :
+                     error.message.includes('refused') ? 'Conexão recusada' :
+                     error.message.includes('certificate') ? 'Erro de certificado SSL' :
+                     'Erro de conectividade geral',
+      suggestion: 'Verifique se o certificado está válido e se há conectividade com a internet'
+    };
+    
     return {
       success: false,
       error: error.message,
       details: `Erro ao conectar com ${url}`,
-      diagnostico
+      diagnostico: { ...diagnostico, connectivityInfo }
     }
+  }
+}
+
+function parseResponse(xmlResponse: string, diagnostico: any) {
+  console.log(`Resposta recebida (primeiros 1000 chars): ${xmlResponse.substring(0, 1000)}`)
+
+  // Parse da resposta XML para extrair informações
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(xmlResponse, 'text/xml')
+  
+  // Verificar se há erros na resposta
+  const faultString = doc.querySelector('faultstring')?.textContent
+  if (faultString) {
+    console.error(`Erro SOAP: ${faultString}`)
+    diagnostico.soapError = faultString;
+    throw new Error(`Erro SOAP: ${faultString}`)
+  }
+
+  // Procurar por chaves de NFe na resposta
+  const chavesNfe = []
+  
+  // Tentar diferentes seletores para encontrar as chaves
+  const possibleSelectors = [
+    'chNFe',
+    'infNFe',
+    'nfe chNFe',
+    'retConsNFeDest chNFe',
+    'resNFe chNFe'
+  ]
+  
+  for (const selector of possibleSelectors) {
+    const elements = doc.querySelectorAll(selector)
+    console.log(`Seletor '${selector}' encontrou ${elements.length} elementos`)
+    
+    for (const element of elements) {
+      let chave = element.textContent?.trim()
+      if (!chave && element.hasAttribute('chNFe')) {
+        chave = element.getAttribute('chNFe')
+      }
+      
+      if (chave && /^[0-9]{44}$/.test(chave)) {
+        chavesNfe.push(chave)
+        console.log(`Chave NFe encontrada: ${chave}`)
+      }
+    }
+  }
+
+  // Se não encontrou chaves, verificar códigos de retorno
+  const cStat = doc.querySelector('cStat')?.textContent
+  const xMotivo = doc.querySelector('xMotivo')?.textContent
+  
+  console.log(`Código de status: ${cStat}, Motivo: ${xMotivo}`)
+  diagnostico.cStat = cStat;
+  diagnostico.xMotivo = xMotivo;
+
+  if (cStat && cStat !== '138') { // 138 = consulta realizada com sucesso
+    console.log(`Status diferente de sucesso: ${cStat} - ${xMotivo}`)
+  }
+
+  return {
+    success: true,
+    data: {
+      chavesNfe: [...new Set(chavesNfe)], // Remove duplicatas
+      codigoStatus: cStat,
+      motivo: xMotivo,
+      xmlResponse: xmlResponse.substring(0, 2000) // Limitar log
+    },
+    diagnostico
   }
 }
 
@@ -494,15 +554,21 @@ async function baixarXmlNfe(url: string, certificado: any, chaveNfe: string, amb
 </soap:Envelope>`
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
         'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeDownload/nfeDownloadNF',
-        'User-Agent': 'SEFAZ-SP-Download/1.0'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       },
-      body: soapEnvelope
+      body: soapEnvelope,
+      signal: controller.signal
     })
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)
@@ -515,6 +581,13 @@ async function baixarXmlNfe(url: string, certificado: any, chaveNfe: string, amb
       xmlContent
     }
   } catch (error) {
+    if (error.name === 'AbortError') {
+      return {
+        success: false,
+        error: 'Timeout ao baixar XML'
+      }
+    }
+    
     return {
       success: false,
       error: error.message
