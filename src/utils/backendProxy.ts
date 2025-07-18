@@ -3,7 +3,7 @@
 const BACKEND_IP = '56.124.22.200';
 
 // Detectar ambiente baseado no hostname específico do Lovable
-const isLovableEnvironment = window.location.hostname.endsWith('.lovableproject.com');
+const isLovableEnvironment = window.location.hostname.endsWith('.lovableproject.com') || window.location.hostname.endsWith('.lovable.app');
 
 export const getBackendUrl = () => {
   if (isLovableEnvironment) {

@@ -189,7 +189,7 @@ export const StatusConectividade = () => {
   const isHttps = backendUrl.startsWith('https');
   const porta = isHttps ? '3002' : '3001';
   const protocolo = isHttps ? 'HTTPS' : 'HTTP';
-  const isLovable = window.location.hostname.endsWith('.lovableproject.com');
+  const isLovable = window.location.hostname.endsWith('.lovableproject.com') || window.location.hostname.endsWith('.lovable.app');
 
   return (
     <Card className="mb-4">
@@ -203,7 +203,7 @@ export const StatusConectividade = () => {
           Status SEFAZ SP
           <Server className={`h-4 w-4 ml-auto ${servidorOnline ? 'text-green-500' : 'text-red-500'}`} />
           {isLovable && status?.errorType === 'SSL_ERROR' && (
-            <AlertTriangle className="h-4 w-4 text-orange-500" title="Usando proxy devido a certificado SSL" />
+            <AlertTriangle className="h-4 w-4 text-orange-500" />
           )}
         </CardTitle>
       </CardHeader>
