@@ -36,87 +36,104 @@ Deno.serve(async (req) => {
 
     console.log(`🔍 Verificando status do SEFAZ - Ambiente: ${ambiente}`)
 
-    // URLs simplificadas para teste de conectividade
+    // URLs atualizadas e múltiplas opções para teste
     const urlsStatus = {
-      producao: 'https://www1.nfe.fazenda.gov.br/NFeConsultaDest/NFeConsultaDest.asmx?wsdl',
-      homologacao: 'https://hom1.nfe.fazenda.gov.br/NFeConsultaDest/NFeConsultaDest.asmx?wsdl'
+      producao: [
+        'https://nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx',
+        'https://nfe.fazenda.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx',
+        'https://www.nfe.fazenda.gov.br/NFeStatusServico4/NFeStatusServico4.asmx'
+      ],
+      homologacao: [
+        'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx',
+        'https://hom.nfe.fazenda.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx',
+        'https://hom.nfe.fazenda.gov.br/NFeStatusServico4/NFeStatusServico4.asmx'
+      ]
     }
 
-    const url = urlsStatus[ambiente]
-    
-    console.log(`🌐 Testando conectividade: ${url}`)
+    const urls = urlsStatus[ambiente]
+    let conectivitySuccess = false
+    let lastError = ''
 
-    try {
-      // Teste de conectividade simples - verificar se conseguimos acessar o WSDL
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 segundos
+    for (const url of urls) {
+      console.log(`🌐 Testando conectividade: ${url}`)
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; SEFAZ-Client/1.0)'
-        },
-        signal: controller.signal
-      })
+      try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 segundos
 
-      clearTimeout(timeoutId)
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/xml; charset=utf-8',
+            'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF',
+            'User-Agent': 'XML-PRO/1.0'
+          },
+          body: `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
+  <soap:Header />
+  <soap:Body>
+    <nfe:nfeStatusServicoNF>
+      <nfe:nfeDadosMsg>
+        <consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+          <tpAmb>${ambiente === 'producao' ? '1' : '2'}</tpAmb>
+          <cUF>35</cUF>
+          <xServ>STATUS</xServ>
+        </consStatServ>
+      </nfe:nfeDadosMsg>
+    </nfe:nfeStatusServicoNF>
+  </soap:Body>
+</soap:Envelope>`,
+          signal: controller.signal
+        })
 
-      console.log(`📡 Status da resposta: ${response.status} ${response.statusText}`)
+        clearTimeout(timeoutId)
 
-      if (response.ok) {
-        const content = await response.text()
-        
-        // Verificar se é um WSDL válido
-        if (content.includes('wsdl:definitions') || content.includes('soap') || content.includes('NFeConsultaDest')) {
-          console.log('✅ Conectividade OK - Serviço SEFAZ acessível')
+        console.log(`📡 Status da resposta: ${response.status} ${response.statusText}`)
+
+        if (response.ok) {
+          const content = await response.text()
+          console.log(`📄 Resposta recebida: ${content.substring(0, 500)}...`)
           
-          return new Response(
-            JSON.stringify({
-              success: true,
-              status: 'conectado',
-              ambiente,
-              timestamp: new Date().toISOString(),
-              detalhes: 'Serviço SEFAZ acessível e operacional'
-            }),
-            {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 200,
-            }
-          )
-        } else {
-          throw new Error('Resposta inválida do serviço SEFAZ')
+          // Verificar se há resposta válida do SEFAZ
+          if (content.includes('cStat') || content.includes('STATUS') || content.includes('nfeStatusServicoNFResult')) {
+            console.log('✅ Conectividade OK - Serviço SEFAZ respondeu')
+            conectivitySuccess = true
+            break
+          }
         }
-      } else {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
 
-    } catch (error) {
-      console.error(`❌ Erro de conectividade: ${error.message}`)
-      
-      let errorMessage = 'Falha na conectividade com SEFAZ'
-      
-      if (error.name === 'AbortError') {
-        errorMessage = 'Timeout na conexão com SEFAZ (>10s)'
-      } else if (error.message.includes('network')) {
-        errorMessage = 'Erro de rede - verifique sua conexão'
-      } else if (error.message.includes('DNS')) {
-        errorMessage = 'Erro de DNS - serviço indisponível'
-      } else if (error.message.includes('fetch')) {
-        errorMessage = 'Não foi possível conectar ao SEFAZ'
+      } catch (error) {
+        console.error(`❌ Erro na URL ${url}: ${error.message}`)
+        lastError = error.message
       }
+    }
 
+    if (conectivitySuccess) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          status: 'conectado',
+          ambiente,
+          timestamp: new Date().toISOString(),
+          detalhes: 'Serviço SEFAZ acessível e operacional'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      )
+    } else {
       return new Response(
         JSON.stringify({
           success: false,
           status: 'desconectado',
           ambiente,
           timestamp: new Date().toISOString(),
-          error: errorMessage,
-          detalhes: error.message,
+          error: 'Não foi possível conectar ao SEFAZ',
+          detalhes: `Todas as URLs falharam. Último erro: ${lastError}`,
           diagnostico: {
-            url,
-            errorType: error.name,
-            errorMessage: error.message
+            urlsTentadas: urls.length,
+            ultimoErro: lastError
           }
         }),
         {
