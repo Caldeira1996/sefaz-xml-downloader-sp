@@ -8,8 +8,12 @@ const { setupHTTPS } = require('./setup-https');
 
 // Importar as rotas do servidor original
 const app = express();
-const PORT = process.env.HTTPS_PORT || 3002; // Mudança para 3002
+const PORT = process.env.HTTPS_PORT || 3002;
 const HOST = process.env.SERVER_HOST || '0.0.0.0';
+
+console.log(`🔧 Configurando HTTPS para o servidor SEFAZ...`);
+console.log(`📋 Porta configurada: ${PORT}`);
+console.log(`🌐 Host configurado: ${HOST}`);
 
 // Middleware
 app.use(cors({
