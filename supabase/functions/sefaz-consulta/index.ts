@@ -162,52 +162,62 @@ Deno.serve(async (req) => {
       throw new Error(`Erro ao criar consulta: ${consultaError.message}`)
     }
 
-    // URLs testadas e funcionais para consulta NFe destinadas
+    // URLs para teste de conectividade (status do serviço) 
+    const urlsStatus = {
+      producao: 'https://nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx',
+      homologacao: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx'
+    }
+
+    // URLs para consulta NFe destinadas  
     const urlsConsultaDest = {
-      producao: [
-        // URL principal da Receita Federal (mais confiável)
-        'https://www1.nfe.fazenda.gov.br/NFeConsultaDest/NFeConsultaDest.asmx'
-      ],
-      homologacao: [
-        // URL de homologação da Receita Federal
-        'https://hom1.nfe.fazenda.gov.br/NFeConsultaDest/NFeConsultaDest.asmx'
-      ]
+      producao: 'https://www1.nfe.fazenda.gov.br/NFeConsultaDest/NFeConsultaDest.asmx',
+      homologacao: 'https://hom1.nfe.fazenda.gov.br/NFeConsultaDest/NFeConsultaDest.asmx'
     }
 
     let resultado
     let xmlsBaixados = 0
 
     if (tipoConsulta === 'manifestacao') {
-      const url = urlsConsultaDest[ambiente][0]; // Usar apenas a URL principal
+      // PRIMEIRO: Testar conectividade com o SEFAZ
+      console.log('🔍 Testando conectividade com SEFAZ...')
       
-      console.log(`🌐 Consultando NFes em: ${url}`)
+      const testeConectividade = await testarConectividadeSefaz(
+        urlsStatus[ambiente],
+        certificado,
+        ambiente
+      )
       
-      try {
-        // Primeiro verificar se o serviço está acessível
-        console.log('🔍 Verificando conectividade com o serviço...')
-        
-        resultado = await consultarManifestacoesPendentes(
-          url,
-          certificado,
-          cnpjConsultado.replace(/\D/g, ''),
-          ambiente,
-          dataInicio,
-          dataFim
-        )
-        
-        if (resultado.success) {
-          console.log(`✅ Consulta realizada com sucesso`)
-        } else {
-          console.log(`❌ Erro na consulta:`, resultado.error)
+      if (!testeConectividade.success) {
+        console.log('❌ Falha no teste de conectividade:', testeConectividade.error)
+        resultado = {
+          success: false,
+          error: `Conectividade com SEFAZ falhou: ${testeConectividade.error}`,
+          details: 'Sistema não consegue conectar com os serviços da SEFAZ'
         }
+      } else {
+        console.log('✅ Conectividade com SEFAZ OK, prosseguindo com consulta...')
         
-      } catch (error) {
-        console.error(`❌ Erro geral na consulta:`, error.message)
-        resultado = { 
-          success: false, 
-          error: error.message,
-          details: 'Falha na comunicação com o webservice da Receita Federal'
-        };
+        // SEGUNDO: Fazer a consulta real
+        const url = urlsConsultaDest[ambiente]
+        
+        try {
+          resultado = await consultarManifestacoesPendentes(
+            url,
+            certificado,
+            cnpjConsultado.replace(/\D/g, ''),
+            ambiente,
+            dataInicio,
+            dataFim
+          )
+          
+        } catch (error) {
+          console.error(`❌ Erro na consulta:`, error.message)
+          resultado = { 
+            success: false, 
+            error: error.message,
+            details: 'Falha na consulta de NFe destinadas'
+          }
+        }
       }
       
       console.log('📊 Resultado final da consulta:', JSON.stringify(resultado, null, 2))
@@ -563,4 +573,83 @@ async function salvarXmlNoBanco(supabaseClient: any, consultaId: string, userId:
       xml_content: xmlContent,
       status_manifestacao: 'pendente'
     })
+}
+
+async function testarConectividadeSefaz(url: string, certificado: any, ambiente: string) {
+  const tpAmb = ambiente === 'producao' ? '1' : '2'
+  
+  // SOAP simples para teste de status do serviço
+  const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
+  <soap:Header />
+  <soap:Body>
+    <nfe:nfeStatusServicoNF>
+      <nfe:nfeDadosMsg>
+        <consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+          <tpAmb>${tpAmb}</tpAmb>
+          <cUF>35</cUF>
+          <xServ>STATUS</xServ>
+        </consStatServ>
+      </nfe:nfeDadosMsg>
+    </nfe:nfeStatusServicoNF>
+  </soap:Body>
+</soap:Envelope>`
+
+  try {
+    console.log(`🌐 Testando conectividade com: ${url}`)
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/xml; charset=utf-8',
+        'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF'
+      },
+      body: soapEnvelope
+    })
+    
+    console.log(`📡 Status do teste: ${response.status} ${response.statusText}`)
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+    
+    const xmlResponse = await response.text()
+    console.log(`📄 Resposta do teste recebida (${xmlResponse.length} caracteres)`)
+    
+    // Verificar se há erro SOAP
+    if (xmlResponse.includes('faultstring')) {
+      const parser = new DOMParser()
+      const doc = parser.parseFromString(xmlResponse, 'text/xml')
+      const faultString = doc.querySelector('faultstring')?.textContent
+      throw new Error(`Erro SOAP: ${faultString}`)
+    }
+    
+    // Verificar status do serviço
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(xmlResponse, 'text/xml')
+    const cStat = doc.querySelector('cStat')?.textContent
+    const xMotivo = doc.querySelector('xMotivo')?.textContent
+    
+    console.log(`📊 Status SEFAZ: ${cStat} - ${xMotivo}`)
+    
+    if (cStat === '107') { // Serviço em Operação
+      return {
+        success: true,
+        status: cStat,
+        motivo: xMotivo
+      }
+    } else {
+      return {
+        success: false,
+        error: `Serviço fora do ar: ${cStat} - ${xMotivo}`
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro no teste de conectividade:', error)
+    return {
+      success: false,
+      error: error.message
+    }
+  }
 }
