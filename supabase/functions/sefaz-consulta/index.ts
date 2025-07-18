@@ -18,7 +18,7 @@ interface ConsultaRequest {
 
 // Rate limiting mais relaxado para testes
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT = 20; // Aumentar limite para testes
+const RATE_LIMIT = 30; // Aumentar limite para testes
 const RATE_WINDOW = 60000; // 1 minuto
 
 function checkRateLimit(userId: string): boolean {
@@ -163,17 +163,17 @@ Deno.serve(async (req) => {
       throw new Error(`Erro ao criar consulta: ${consultaError.message}`)
     }
 
-    // URLs múltiplos para tentar conectar com a SEFAZ SP
+    // URLs corretas da SEFAZ SP - atualizadas
     const urlsAlternativos = {
       producao: [
-        'https://nfe.fazenda.sp.gov.br/ws/nfeconsultadest.asmx',
-        'https://nfe.fazenda.sp.gov.br/nfeweb/services/nfeconsultadest.asmx',
-        'https://www.nfe.fazenda.sp.gov.br/ws/nfeconsultadest.asmx'
+        'https://nfe.fazenda.sp.gov.br/ws/nfeconsultadest4.asmx',
+        'https://nfe.fazenda.sp.gov.br/ws/nfeconsultadest2.asmx',
+        'https://nfe.fazenda.sp.gov.br/nfeweb/services/nfeconsultadest4.asmx'
       ],
       homologacao: [
-        'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeconsultadest.asmx',
-        'https://homologacao.nfe.fazenda.sp.gov.br/nfeweb/services/nfeconsultadest.asmx',
-        'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeconsultadest2.asmx'
+        'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeconsultadest4.asmx',
+        'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeconsultadest2.asmx',
+        'https://homologacao.nfe.fazenda.sp.gov.br/nfeweb/services/nfeconsultadest4.asmx'
       ]
     }
 
@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
         console.log(`Encontradas ${resultado.data.chavesNfe.length} NFe(s)`)
         
         // Baixar XMLs das notas encontradas
-        const chavesLimitadas = resultado.data.chavesNfe.slice(0, 50); // Aumentar limite
+        const chavesLimitadas = resultado.data.chavesNfe.slice(0, 100); // Aumentar limite
         
         for (const chaveNfe of chavesLimitadas) {
           try {
@@ -325,8 +325,9 @@ async function consultarManifestacoesPendentes(
       <dhFim>${dataFimFormatada}T23:59:59-03:00</dhFim>`;
   }
   
+  // SOAP envelope corrigido para versão 4.00
   const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NfeConsultaDest">
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaDest">
   <soap:Header />
   <soap:Body>
     <nfe:nfeConsultaNFDest>
@@ -358,23 +359,21 @@ async function consultarManifestacoesPendentes(
     console.log(`Enviando requisição SOAP para: ${url}`)
     console.log(`CNPJ consultado: ${cnpj}, Ambiente: ${ambiente} (${tpAmb})`)
     
-    // Configuração otimizada de fetch para SEFAZ
+    // Configuração melhorada de fetch para SEFAZ
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos
+    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 segundos
     
     try {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'text/xml; charset=utf-8',
-          'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeConsultaDest/nfeConsultaNFDest',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-          'Accept': 'text/xml, application/soap+xml, application/xml, */*',
-          'Accept-Encoding': 'gzip, deflate',
-          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+          'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaDest/nfeConsultaNFDest',
+          'User-Agent': 'PostmanRuntime/7.29.2',
+          'Accept': '*/*',
+          'Accept-Encoding': 'identity',
           'Connection': 'keep-alive',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
+          'Content-Length': soapEnvelope.length.toString()
         },
         body: soapEnvelope,
         signal: controller.signal
@@ -413,11 +412,12 @@ async function consultarManifestacoesPendentes(
         error.message.includes('refused') || error.message.includes('ECONNREFUSED') ? 'Conexão recusada - servidor pode estar indisponível' :
         error.message.includes('certificate') || error.message.includes('SSL') ? 'Erro de certificado SSL/TLS' :
         error.message.includes('network') || error.message.includes('fetch') ? 'Erro de conectividade de rede' :
+        error.message.includes('404') ? 'Endpoint não encontrado - URL pode estar desatualizada' :
         'Erro desconhecido de conectividade',
       suggestions: [
         'Verificar se a SEFAZ SP está operacional',
         'Tentar novamente em alguns minutos',
-        'Verificar conectividade com outros webservices',
+        'Verificar se as URLs dos webservices estão atualizadas',
         'Contatar suporte técnico se o problema persistir'
       ]
     };
@@ -456,7 +456,8 @@ function parseResponse(xmlResponse: string, diagnostico: any) {
     'resNFe chNFe',
     'resNFe[chNFe]',
     'ret chNFe',
-    'NFe chNFe'
+    'NFe chNFe',
+    'resNFe > chNFe'
   ]
   
   for (const selector of possibleSelectors) {
@@ -476,7 +477,7 @@ function parseResponse(xmlResponse: string, diagnostico: any) {
     }
   }
 
-  // Busca por regex mais agressiva
+  // Busca por regex mais agressiva no XML
   if (chavesNfe.length === 0) {
     console.log('Procurando chaves no XML bruto com regex...')
     // Procurar por sequências de 44 dígitos
@@ -548,14 +549,16 @@ async function baixarXmlNfe(url: string, certificado: any, chaveNfe: string, amb
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
     
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
         'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeDownload/nfeDownloadNF',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'PostmanRuntime/7.29.2',
+        'Accept': '*/*',
+        'Accept-Encoding': 'identity',
         'Connection': 'keep-alive'
       },
       body: soapEnvelope,
