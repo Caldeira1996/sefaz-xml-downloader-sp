@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { StatusConectividade } from './StatusConectividade';
-import { AlertCircle, CheckCircle, Info, Calendar as CalendarIcon, ShieldCheck } from 'lucide-react';
+import { AlertCircle, CheckCircle, Info, Calendar as CalendarIcon, ShieldCheck, Server } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +24,9 @@ interface Certificado {
   is_principal: boolean;
 }
 
+// URL do servidor backend
+const BACKEND_URL = 'http://localhost:3001';
+
 export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () => void }) => {
   const [certificados, setCertificados] = useState<Certificado[]>([]);
   const [certificadoSelecionado, setCertificadoSelecionado] = useState('');
@@ -33,7 +36,7 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
   const [loading, setLoading] = useState(false);
   const [ultimoResultado, setUltimoResultado] = useState<any>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
 
   useEffect(() => {
     if (user) {
@@ -77,6 +80,15 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
       return;
     }
 
+    if (!session) {
+      toast({
+        title: "Sessão expirada",
+        description: "Faça login novamente",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     setUltimoResultado(null);
 
@@ -92,20 +104,25 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
         ...(dataFim && { dataFim: dataFim.toISOString().split('T')[0] })
       };
       
-      console.log('Iniciando consulta SEFAZ...', requestBody);
+      console.log('Iniciando consulta SEFAZ via backend...', requestBody);
       
-      const response = await supabase.functions.invoke('sefaz-consulta', {
-        body: requestBody
+      const response = await fetch(`${BACKEND_URL}/api/sefaz/consulta`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify(requestBody)
       });
 
-      console.log('Resposta da função:', response);
+      console.log('Resposta do backend:', response);
 
-      if (response.error) {
-        console.error('Erro na função:', response.error);
-        throw new Error(response.error.message || 'Erro desconhecido');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Erro HTTP: ${response.status}`);
       }
 
-      const { data } = response;
+      const data = await response.json();
       setUltimoResultado(data);
       
       if (data.success) {
@@ -124,14 +141,23 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
       onConsultaIniciada();
     } catch (error: any) {
       console.error('Erro na consulta:', error);
+      
+      let errorMessage = error.message;
+      
+      if (error.message.includes('Failed to fetch')) {
+        errorMessage = 'Servidor backend offline. Inicie o servidor Node.js na porta 3001.';
+      }
+      
       toast({
         title: "Erro na consulta",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
+      
       setUltimoResultado({
         success: false,
-        error: error.message
+        error: errorMessage,
+        servidor: 'Backend Node.js'
       });
     } finally {
       setLoading(false);
@@ -154,9 +180,21 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
 
       <Card>
         <CardHeader>
-          <CardTitle>Consultar SEFAZ SP</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Server className="h-5 w-5" />
+            Consultar SEFAZ SP (via Backend)
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Alert sobre nova arquitetura */}
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Nova Arquitetura:</strong> As consultas agora são processadas via servidor backend Node.js 
+              que possui acesso aos certificados digitais. Certifique-se de que o servidor backend esteja rodando.
+            </AlertDescription>
+          </Alert>
+
           <div>
             <Label htmlFor="certificado">Certificado Digital</Label>
             <Select value={certificadoSelecionado} onValueChange={setCertificadoSelecionado}>
@@ -318,6 +356,11 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
                 <AlertCircle className="h-5 w-5 text-red-500" />
               )}
               Resultado da Consulta
+              {ultimoResultado.servidor && (
+                <Badge variant="outline" className="ml-auto">
+                  {ultimoResultado.servidor}
+                </Badge>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -327,6 +370,9 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
                 <p><strong>XMLs baixados:</strong> {ultimoResultado.xmlsBaixados}</p>
                 {ultimoResultado.detalhes && (
                   <p><strong>Detalhes:</strong> {ultimoResultado.detalhes}</p>
+                )}
+                {ultimoResultado.ambiente && (
+                  <p><strong>Ambiente:</strong> {ultimoResultado.ambiente}</p>
                 )}
               </div>
             ) : (
@@ -343,17 +389,13 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
               <details className="mt-4">
                 <summary className="cursor-pointer text-sm font-medium">Informações de Diagnóstico</summary>
                 <div className="mt-2 p-3 bg-muted rounded text-xs space-y-1">
-                  <p><strong>URL:</strong> {ultimoResultado.diagnostico.url}</p>
-                  <p><strong>Ambiente:</strong> {ultimoResultado.diagnostico.ambiente}</p>
+                  <p><strong>Servidor:</strong> {ultimoResultado.diagnostico.servidor}</p>
                   <p><strong>Timestamp:</strong> {ultimoResultado.diagnostico.timestamp}</p>
-                  {ultimoResultado.diagnostico.cStat && (
-                    <p><strong>Código SEFAZ:</strong> {ultimoResultado.diagnostico.cStat}</p>
+                  {ultimoResultado.diagnostico.observacao && (
+                    <p><strong>Observação:</strong> {ultimoResultado.diagnostico.observacao}</p>
                   )}
-                  {ultimoResultado.diagnostico.xMotivo && (
-                    <p><strong>Motivo SEFAZ:</strong> {ultimoResultado.diagnostico.xMotivo}</p>
-                  )}
-                  {ultimoResultado.diagnostico.soapError && (
-                    <p className="text-red-600"><strong>Erro SOAP:</strong> {ultimoResultado.diagnostico.soapError}</p>
+                  {ultimoResultado.diagnostico.url && (
+                    <p><strong>URL SEFAZ:</strong> {ultimoResultado.diagnostico.url}</p>
                   )}
                 </div>
               </details>

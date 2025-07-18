@@ -3,62 +3,107 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { CheckCircle, XCircle, Loader2, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, RefreshCw, Wifi, WifiOff, Server } from 'lucide-react';
 
 interface StatusConectividade {
   conectado: boolean;
   ambiente: string;
   ultimaVerificacao: string;
   detalhes?: string;
+  servidor?: string;
 }
+
+// URL do servidor backend local
+const BACKEND_URL = 'http://localhost:3001';
 
 export const StatusConectividade = () => {
   const [status, setStatus] = useState<StatusConectividade | null>(null);
   const [verificando, setVerificando] = useState(false);
+  const [servidorOnline, setServidorOnline] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
+
+  const verificarServidorBackend = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/health`);
+      const data = await response.json();
+      setServidorOnline(response.ok);
+      return response.ok;
+    } catch (error) {
+      console.error('Servidor backend offline:', error);
+      setServidorOnline(false);
+      return false;
+    }
+  };
 
   const verificarConectividade = async () => {
-    if (!user) return;
+    if (!user || !session) return;
 
     setVerificando(true);
     
     try {
-      console.log('🔍 Verificando conectividade com SEFAZ...');
+      console.log('🔍 Verificando conectividade com SEFAZ via backend...');
       
-      const response = await supabase.functions.invoke('sefaz-status', {
-        body: {
+      // Primeiro verificar se o servidor backend está online
+      const backendOnline = await verificarServidorBackend();
+      
+      if (!backendOnline) {
+        setStatus({
+          conectado: false,
+          ambiente: 'N/A',
+          ultimaVerificacao: new Date().toLocaleString('pt-BR'),
+          detalhes: 'Servidor backend offline. Inicie o servidor Node.js na porta 3001.',
+          servidor: 'Offline'
+        });
+
+        toast({
+          title: "🔌 Servidor Backend Offline",
+          description: "Inicie o servidor Node.js para conectar com SEFAZ",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await fetch(`${BACKEND_URL}/api/sefaz/status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
           ambiente: 'producao'
-        }
+        })
       });
 
       console.log('📡 Resposta da verificação:', response);
 
-      if (response.error) {
-        throw new Error(response.error.message || 'Erro desconhecido');
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
       }
 
-      const { data } = response;
+      const data = await response.json();
       
       setStatus({
         conectado: data.success,
         ambiente: 'Produção',
         ultimaVerificacao: new Date().toLocaleString('pt-BR'),
-        detalhes: data.success ? 'Serviços SEFAZ operacionais' : data.error
+        detalhes: data.success 
+          ? `Servidor SEFAZ acessível via backend (${data.conectividade?.statusCode})` 
+          : data.error,
+        servidor: 'Online'
       });
 
       if (data.success) {
         toast({
-          title: "✅ SEFAZ Conectado",
-          description: "Serviços operacionais - consultas podem ser realizadas",
+          title: "✅ Conectividade OK",
+          description: "Servidor backend conectado com SEFAZ SP",
         });
       } else {
         toast({
-          title: "❌ SEFAZ Desconectado",
-          description: data.error || "Falha na conectividade",
+          title: "⚠️ Conectividade Limitada",
+          description: data.error || "Verifique a conexão com SEFAZ",
           variant: "destructive",
         });
       }
@@ -70,7 +115,8 @@ export const StatusConectividade = () => {
         conectado: false,
         ambiente: 'Produção',
         ultimaVerificacao: new Date().toLocaleString('pt-BR'),
-        detalhes: error.message
+        detalhes: error.message,
+        servidor: servidorOnline ? 'Online' : 'Offline'
       });
 
       toast({
@@ -85,21 +131,21 @@ export const StatusConectividade = () => {
 
   // Verificar automaticamente ao carregar
   useEffect(() => {
-    if (user) {
+    if (user && session) {
       verificarConectividade();
     }
-  }, [user]);
+  }, [user, session]);
 
-  // Verificar a cada 5 minutos
+  // Verificar a cada 2 minutos
   useEffect(() => {
-    if (!user) return;
+    if (!user || !session) return;
 
     const interval = setInterval(() => {
       verificarConectividade();
-    }, 5 * 60 * 1000); // 5 minutos
+    }, 2 * 60 * 1000); // 2 minutos
 
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, session]);
 
   if (!user) return null;
 
@@ -112,7 +158,8 @@ export const StatusConectividade = () => {
           ) : (
             <WifiOff className="h-4 w-4 text-red-500" />
           )}
-          Status SEFAZ
+          Status SEFAZ SP
+          <Server className={`h-4 w-4 ml-auto ${servidorOnline ? 'text-green-500' : 'text-red-500'}`} />
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
@@ -139,6 +186,12 @@ export const StatusConectividade = () => {
                     {status.ambiente}
                   </span>
                 )}
+                <Badge 
+                  variant={servidorOnline ? "default" : "destructive"}
+                  className="text-xs"
+                >
+                  Backend: {servidorOnline ? 'Online' : 'Offline'}
+                </Badge>
               </div>
               
               {status && (
@@ -147,8 +200,8 @@ export const StatusConectividade = () => {
                 </p>
               )}
               
-              {status?.detalhes && !status.conectado && (
-                <p className="text-xs text-red-600 mt-1">
+              {status?.detalhes && (
+                <p className={`text-xs mt-1 ${status.conectado ? 'text-green-600' : 'text-red-600'}`}>
                   {status.detalhes}
                 </p>
               )}
@@ -167,10 +220,17 @@ export const StatusConectividade = () => {
           </Button>
         </div>
 
-        {!status?.conectado && status && (
+        {!servidorOnline && (
+          <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
+            <strong>🔌 Servidor Backend Offline:</strong> Inicie o servidor Node.js executando:
+            <code className="block mt-1 bg-orange-100 p-1 rounded">cd backend && npm run dev</code>
+          </div>
+        )}
+
+        {servidorOnline && !status?.conectado && status && (
           <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
-            <strong>⚠️ Atenção:</strong> Não é possível realizar consultas enquanto o SEFAZ estiver desconectado.
-            Verifique sua conexão com a internet ou tente novamente em alguns minutos.
+            <strong>⚠️ Atenção:</strong> Backend online mas há problemas na conectividade com SEFAZ.
+            Verifique sua conexão com a internet e configurações de certificado.
           </div>
         )}
       </CardContent>
