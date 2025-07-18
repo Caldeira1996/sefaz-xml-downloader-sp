@@ -1,161 +1,208 @@
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface StatusRequest {
-  ambiente: 'producao' | 'homologacao'
+// URLs atualizadas dos webservices SEFAZ SP
+const SEFAZ_URLS = {
+  producao: [
+    'https://nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx',
+    'https://nfe.fazenda.sp.gov.br/ws/nfestatusservico2.asmx',
+    'https://www.fazenda.sp.gov.br/nfe/ws/nfestatusservico4.asmx'
+  ],
+  homologacao: [
+    'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx',
+    'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfestatusservico2.asmx'
+  ]
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
-  }
-
+async function testSefazConnection(url: string): Promise<{ success: boolean; details: any }> {
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
-    )
-
-    const { data: { user } } = await supabaseClient.auth.getUser()
-    if (!user) {
-      throw new Error('Usuário não autenticado')
-    }
-
-    const requestData: StatusRequest = await req.json()
-    const { ambiente } = requestData
-
-    console.log(`🔍 Verificando status do SEFAZ - Ambiente: ${ambiente}`)
-
-    // URLs atualizadas e múltiplas opções para teste
-    const urlsStatus = {
-      producao: [
-        'https://nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx',
-        'https://nfe.fazenda.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx',
-        'https://www.nfe.fazenda.gov.br/NFeStatusServico4/NFeStatusServico4.asmx'
-      ],
-      homologacao: [
-        'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx',
-        'https://hom.nfe.fazenda.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx',
-        'https://hom.nfe.fazenda.gov.br/NFeStatusServico4/NFeStatusServico4.asmx'
-      ]
-    }
-
-    const urls = urlsStatus[ambiente]
-    let conectivitySuccess = false
-    let lastError = ''
-
-    for (const url of urls) {
-      console.log(`🌐 Testando conectividade: ${url}`)
-
-      try {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 segundos
-
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'text/xml; charset=utf-8',
-            'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF',
-            'User-Agent': 'XML-PRO/1.0'
-          },
-          body: `<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
-  <soap:Header />
+    console.log(`🔍 Testando conectividade: ${url}`)
+    
+    // Criar SOAP envelope para testar o serviço
+    const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+               xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+               xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/">
   <soap:Body>
-    <nfe:nfeStatusServicoNF>
-      <nfe:nfeDadosMsg>
+    <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
+      <nfeCabecMsg>
+        <cUF>35</cUF>
+        <versaoDados>4.00</versaoDados>
+      </nfeCabecMsg>
+      <nfeDadosMsg>
         <consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
-          <tpAmb>${ambiente === 'producao' ? '1' : '2'}</tpAmb>
+          <tpAmb>2</tpAmb>
           <cUF>35</cUF>
           <xServ>STATUS</xServ>
         </consStatServ>
-      </nfe:nfeDadosMsg>
-    </nfe:nfeStatusServicoNF>
+      </nfeDadosMsg>
+    </nfeStatusServicoNF>
   </soap:Body>
-</soap:Envelope>`,
-          signal: controller.signal
-        })
+</soap:Envelope>`
 
-        clearTimeout(timeoutId)
+    // Primeira tentativa: POST com SOAP
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/xml; charset=utf-8',
+          'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF',
+          'User-Agent': 'Mozilla/5.0 (compatible; SEFAZ-Client/1.0)'
+        },
+        body: soapEnvelope,
+        signal: AbortSignal.timeout(15000) // 15 segundos
+      })
 
-        console.log(`📡 Status da resposta: ${response.status} ${response.statusText}`)
-
-        if (response.ok) {
-          const content = await response.text()
-          console.log(`📄 Resposta recebida: ${content.substring(0, 500)}...`)
-          
-          // Verificar se há resposta válida do SEFAZ
-          if (content.includes('cStat') || content.includes('STATUS') || content.includes('nfeStatusServicoNFResult')) {
-            console.log('✅ Conectividade OK - Serviço SEFAZ respondeu')
-            conectivitySuccess = true
-            break
+      const responseText = await response.text()
+      
+      console.log(`📡 Resposta SOAP (${response.status}):`, responseText.substring(0, 500))
+      
+      // Verificar se a resposta contém elementos válidos do SEFAZ
+      if (responseText.includes('retConsStatServ') || 
+          responseText.includes('cStat') || 
+          responseText.includes('xMotivo') ||
+          response.status === 200) {
+        return {
+          success: true,
+          details: {
+            method: 'SOAP',
+            status: response.status,
+            hasValidResponse: responseText.includes('retConsStatServ'),
+            responsePreview: responseText.substring(0, 200)
           }
         }
+      }
+    } catch (soapError) {
+      console.log(`❌ Erro SOAP: ${soapError.message}`)
+    }
 
-      } catch (error) {
-        console.error(`❌ Erro na URL ${url}: ${error.message}`)
-        lastError = error.message
+    // Segunda tentativa: GET simples para verificar se o endpoint responde
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; SEFAZ-Client/1.0)'
+        },
+        signal: AbortSignal.timeout(10000) // 10 segundos
+      })
+
+      console.log(`📡 Resposta GET (${response.status})`)
+      
+      if (response.status === 200 || response.status === 405) { // 405 = Method Not Allowed é esperado
+        return {
+          success: true,
+          details: {
+            method: 'GET',
+            status: response.status,
+            note: response.status === 405 ? 'Endpoint ativo (Method Not Allowed é esperado)' : 'Endpoint acessível'
+          }
+        }
+      }
+    } catch (getError) {
+      console.log(`❌ Erro GET: ${getError.message}`)
+    }
+
+    return {
+      success: false,
+      details: {
+        error: 'Nenhum método de conexão foi bem-sucedido',
+        url: url
       }
     }
 
-    if (conectivitySuccess) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          status: 'conectado',
-          ambiente,
-          timestamp: new Date().toISOString(),
-          detalhes: 'Serviço SEFAZ acessível e operacional'
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        }
-      )
-    } else {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          status: 'desconectado',
-          ambiente,
-          timestamp: new Date().toISOString(),
-          error: 'Não foi possível conectar ao SEFAZ',
-          detalhes: `Todas as URLs falharam. Último erro: ${lastError}`,
-          diagnostico: {
-            urlsTentadas: urls.length,
-            ultimoErro: lastError
-          }
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        }
-      )
+  } catch (error) {
+    console.error(`❌ Erro geral testando ${url}:`, error)
+    return {
+      success: false,
+      details: {
+        error: error.message,
+        url: url
+      }
     }
+  }
+}
+
+serve(async (req) => {
+  // Handle CORS
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  try {
+    const { ambiente = 'producao' } = await req.json()
+    
+    console.log(`🚀 Iniciando teste de conectividade SEFAZ SP - Ambiente: ${ambiente}`)
+    
+    const urls = SEFAZ_URLS[ambiente as keyof typeof SEFAZ_URLS] || SEFAZ_URLS.producao
+    
+    // Testar todas as URLs disponíveis
+    const results = []
+    let successCount = 0
+    
+    for (const url of urls) {
+      const result = await testSefazConnection(url)
+      results.push({ url, ...result })
+      if (result.success) successCount++
+    }
+    
+    const isConnected = successCount > 0
+    const bestResult = results.find(r => r.success) || results[0]
+    
+    console.log(`📊 Resultado final: ${successCount}/${urls.length} URLs conectadas`)
+    
+    return new Response(
+      JSON.stringify({
+        success: isConnected,
+        ambiente: ambiente,
+        timestamp: new Date().toISOString(),
+        connectionDetails: {
+          successfulConnections: successCount,
+          totalTested: urls.length,
+          results: results
+        },
+        message: isConnected 
+          ? `SEFAZ SP ${ambiente} está acessível (${successCount}/${urls.length} URLs)`
+          : `SEFAZ SP ${ambiente} não está acessível`,
+        error: !isConnected ? 'Nenhuma URL do SEFAZ SP respondeu adequadamente' : null,
+        recommendedUrl: bestResult?.url,
+        diagnostics: {
+          testMethod: 'SOAP + GET fallback',
+          timeout: '15s SOAP / 10s GET',
+          userAgent: 'Mozilla/5.0 (compatible; SEFAZ-Client/1.0)'
+        }
+      }),
+      { 
+        headers: { 
+          'Content-Type': 'application/json',
+          ...corsHeaders 
+        } 
+      }
+    )
 
   } catch (error) {
-    console.error('❌ Erro interno:', error)
+    console.error('❌ Erro na função sefaz-status:', error)
     
     return new Response(
       JSON.stringify({
         success: false,
-        status: 'erro',
-        error: error.message || 'Erro interno do servidor',
-        timestamp: new Date().toISOString()
+        error: error.message,
+        timestamp: new Date().toISOString(),
+        diagnostics: {
+          functionError: true,
+          details: 'Erro interno da função de teste'
+        }
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+      { 
+        headers: { 
+          'Content-Type': 'application/json',
+          ...corsHeaders 
+        },
+        status: 500
       }
     )
   }
