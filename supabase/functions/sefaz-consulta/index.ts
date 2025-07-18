@@ -15,9 +15,9 @@ interface ConsultaRequest {
   dataFim?: string
 }
 
-// Rate limiting mais relaxado para testes
+// Rate limiting configurado para Receita Federal
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT = 50; // Aumentar limite para testes
+const RATE_LIMIT = 10; // 10 consultas por minuto (conservador)
 const RATE_WINDOW = 60000; // 1 minuto
 
 function checkRateLimit(userId: string): boolean {
@@ -162,23 +162,23 @@ Deno.serve(async (req) => {
       throw new Error(`Erro ao criar consulta: ${consultaError.message}`)
     }
 
-    // URLs corrigidas para consulta de NFe destinadas - usando serviços alternativos
+    // URLs da Receita Federal (mais confiáveis) para consulta NFe destinadas
     const urlsConsultaDest = {
       producao: [
-        // Tentar primeiro o webservice do AN (Ambiente Nacional)
+        // Ambiente Nacional da Receita Federal (principal)
+        'https://www1.nfe.fazenda.gov.br/NFeConsultaDest/NFeConsultaDest.asmx',
+        // Backup: Ambiente Nacional alternativo
         'https://www.nfe.fazenda.gov.br/NFeConsultaDest/NFeConsultaDest.asmx',
-        // Backup: webservice estadual do RS (mais estável)
-        'https://nfe.sefaz.rs.gov.br/ws/NfeConsulta/NfeConsulta4.asmx',
-        // Backup: webservice do PR
-        'https://nfe.sfa.pr.gov.br/ws/NFeConsultaDest/NFeConsultaDest.asmx',
-        // Última tentativa: SP (mesmo sabendo que pode não ter o serviço)
-        'https://nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx'
+        // Backup: SVRS (Servidor Virtual da Receita para Estados sem estrutura própria)
+        'https://nfe.svrs.rs.gov.br/ws/NfeConsulta/NfeConsulta4.asmx'
       ],
       homologacao: [
+        // Ambiente Nacional Homologação
+        'https://hom1.nfe.fazenda.gov.br/NFeConsultaDest/NFeConsultaDest.asmx',
+        // Backup: Ambiente Nacional homologação alternativo
         'https://hom.nfe.fazenda.gov.br/NFeConsultaDest/NFeConsultaDest.asmx',
-        'https://nfe-homologacao.sefaz.rs.gov.br/ws/NfeConsulta/NfeConsulta4.asmx',
-        'https://homologacao.nfe.sfa.pr.gov.br/ws/NFeConsultaDest/NFeConsultaDest.asmx',
-        'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx'
+        // Backup: SVRS Homologação
+        'https://nfe-homologacao.svrs.rs.gov.br/ws/NfeConsulta/NfeConsulta4.asmx'
       ]
     }
 
@@ -332,7 +332,7 @@ async function consultarManifestacoesPendentes(
       <dhFim>${dataFimFormatada}T23:59:59-03:00</dhFim>`;
   }
   
-  // SOAP envelope para consulta de NFe destinadas
+  // SOAP envelope para consulta de NFe destinadas (padrão Receita Federal)
   const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaDest">
   <soap:Header />
@@ -366,9 +366,9 @@ async function consultarManifestacoesPendentes(
     console.log(`🌐 Enviando requisição SOAP para: ${url}`)
     console.log(`📋 CNPJ consultado: ${cnpj}, Ambiente: ${ambiente} (${tpAmb})`)
     
-    // Configuração otimizada para SEFAZ com timeout maior
+    // Configuração otimizada para Receita Federal
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutos
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 1 minuto
     
     try {
       const response = await fetch(url, {
@@ -376,12 +376,10 @@ async function consultarManifestacoesPendentes(
         headers: {
           'Content-Type': 'text/xml; charset=utf-8',
           'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaDest/nfeConsultaNFDest',
-          'User-Agent': 'Mozilla/5.0 (compatible; NFe-Client/1.0)',
-          'Accept': 'text/xml, application/soap+xml, application/xml',
-          'Accept-Encoding': 'gzip, deflate',
-          'Connection': 'keep-alive',
-          'Cache-Control': 'no-cache',
-          'Content-Length': soapEnvelope.length.toString()
+          'User-Agent': 'NFe-Consulta/1.0',
+          'Accept': 'text/xml, application/xml',
+          'Connection': 'close',
+          'Cache-Control': 'no-cache'
         },
         body: soapEnvelope,
         signal: controller.signal
