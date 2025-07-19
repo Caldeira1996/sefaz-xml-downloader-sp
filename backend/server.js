@@ -10,7 +10,18 @@ const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 const caCert = fs.readFileSync('./certs/sefaz-intermediate.pem');
 
+const express = require('express');
+const express = require('express');
 const app = express();
+
+// aqui você define as rotas, middlewares, etc.
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK' });
+});
+
+// exporta o app para usar em outro lugar
+module.exports = app;
+
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.SERVER_HOST || '0.0.0.0';
 
