@@ -15,8 +15,9 @@ const HOST = process.env.SERVER_HOST || '0.0.0.0';
 
 // Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true
+  origin: 'https://www.xmlprodownloader.com.br',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,  // se usar cookies ou auth
 }));
 app.use(express.json());
 
@@ -313,14 +314,5 @@ app.get('/health', (req, res) => {
     ambiente: process.env.NODE_ENV || 'development'
   });
 });
-
-// Iniciar servidor
-// app.listen(PORT, HOST, () => {
-//   console.log(`🚀 Servidor proxy SEFAZ rodando em ${HOST}:${PORT}`);
-//   console.log(`📁 Diretório de certificados: ${certificatesDir}`);
-//   console.log(`🌐 Health check: http://${HOST}:${PORT}/health`);
-//   console.log(`🔗 CORS configurado para: ${process.env.CORS_ORIGIN || '*'}`);
-// });
-
 module.exports = app;
 
