@@ -132,16 +132,16 @@ app.post('/api/sefaz/status', validateToken, async (req, res) => {
       : process.env.SEFAZ_HOMOLOGACAO_URL;
 
     // Verificar conectividade básica primeiro
-    const connectivityTest = new Promise((resolve, reject) => {
-      const url = new URL(sefazUrl);
-      const options = {
-        hostname: url.hostname,
-        port: 443,
-        path: url.pathname,
-        method: 'GET',
-        timeout: 10000,
-        //ca: caCert,
-      };
+   const connectivityTest = new Promise((resolve, reject) => {
+    const url = new URL(sefazUrl);
+    const options = {
+      hostname: url.hostname,
+      port: 443,
+      path: url.pathname,
+      method: 'GET',
+      timeout: 10000,
+      ca: caCert,
+    };
 
       const req = https.request(options, (res) => {
         resolve({

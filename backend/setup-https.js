@@ -2,12 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
+const certDir = path.join(__dirname, 'certs');
+
 const agent = new https.Agent({
-  cert: fs.readFileSync(path.join(__dirname, 'certs/client-cert.pem')),
-  key: fs.readFileSync(path.join(__dirname, 'certs/client-key.pem')),
-  ca: fs.readFileSync(path.join(__dirname, 'certs/ca-cert.pem')), // <- combinado root + intermediate
+  cert: fs.readFileSync(path.join(certDir, 'client-cert.pem')),
+  key: fs.readFileSync(path.join(certDir, 'client-key.pem')),
+  ca: fs.readFileSync(path.join(certDir, 'ca-cert.pem')), // raiz + intermediário concatenados
   rejectUnauthorized: true,
-  passphrase: '123456'
+  passphrase: 'SUA_SENHA_AQUI' // a senha do seu certificado
 });
 
 // Exporta para ser usado nas requisições à SEFAZ
