@@ -6,31 +6,24 @@ const express = require('express');
 
 // Script para configurar HTTPS no servidor
 const setupHTTPS = () => {
-  console.log('🔧 Configurando HTTPS para o servidor SEFAZ...');
-  
-  const certDir = path.join(__dirname, 'ssl');
-  
-  // Verificar se o diretório SSL existe
+  const certDir = path.join(__dirname, 'certs'); // use 'certs' para padronizar
+
   if (!fs.existsSync(certDir)) {
     fs.mkdirSync(certDir, { recursive: true });
-    console.log('📁 Diretório SSL criado:', certDir);
   }
-  
-  const certPath = path.join(certDir, 'cert.pem');
-  const keyPath = path.join(certDir, 'key.pem');
-  
-  // Verificar se os certificados existem
-  if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
-    console.log('✅ Certificados SSL encontrados!');
+
+  const certPath = path.join(certDir, 'client-cert.pem');
+  const keyPath = path.join(certDir, 'client-key.pem');
+  const caPath = path.join(certDir, 'sefaz-intermediate.pem');
+
+  if (fs.existsSync(certPath) && fs.existsSync(keyPath) && fs.existsSync(caPath)) {
     return {
       cert: fs.readFileSync(certPath),
-      key: fs.readFileSync(keyPath)
+      key: fs.readFileSync(keyPath),
+      ca: fs.readFileSync(caPath)
     };
   } else {
-    console.log('❌ Certificados SSL não encontrados.');
-    console.log('Execute o script de geração de certificados primeiro.');
+    console.log('❌ Alguns certificados SSL não foram encontrados em certs/');
     return null;
   }
 };
-
-module.exports = { setupHTTPS };
