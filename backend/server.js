@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const https = require('https');
@@ -8,19 +7,10 @@ const soap = require('soap');
 const xml2js = require('xml2js');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
+
 const caCert = fs.readFileSync('./certs/sefaz-intermediate.pem');
 
-const express = require('express');
-const express = require('express');
 const app = express();
-
-// aqui você define as rotas, middlewares, etc.
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK' });
-});
-
-// exporta o app para usar em outro lugar
-module.exports = app;
 
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.SERVER_HOST || '0.0.0.0';
@@ -31,9 +21,10 @@ const allowedOrigins = [
   'http://localhost:5173', // opcional para desenvolvimento
 ];
 
+// Middleware CORS
 app.use(cors({
   origin: function(origin, callback) {
-    if (!origin) return callback(null, true); // para requests sem origem (curl, postman)
+    if (!origin) return callback(null, true); // curl, postman etc
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
@@ -45,21 +36,19 @@ app.use(cors({
 
 app.use(express.json());
 
-
-
-// Supabase client para validar tokens
+// Supabase client
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
 
-// Diretório para certificados
+// Diretório certificados
 const certificatesDir = process.env.CERTIFICATES_DIR || './certificates';
 if (!fs.existsSync(certificatesDir)) {
   fs.mkdirSync(certificatesDir, { recursive: true });
 }
 
-// Middleware para validar token do usuário
+// Middleware para validar token
 const validateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -81,6 +70,18 @@ const validateToken = async (req, res, next) => {
     res.status(401).json({ error: 'Erro na autenticação' });
   }
 };
+
+// Sua lógica, funções, rotas aqui (igual você já fez)
+
+// Exemplo da rota health check
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    servidor: 'Proxy SEFAZ SP',
+    timestamp: new Date().toISOString(),
+    ambiente: process.env.NODE_ENV || 'development'
+  });
+});
 
 // Função para carregar certificado
 const loadCertificate = (certificadoPath, senha) => {
@@ -341,5 +342,6 @@ app.get('/health', (req, res) => {
     ambiente: process.env.NODE_ENV || 'development'
   });
 });
+// No final, exporta o app para o server HTTPS
 module.exports = app;
 
