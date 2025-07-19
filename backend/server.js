@@ -13,13 +13,23 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.SERVER_HOST || '0.0.0.0';
 
-// Middleware
+const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',');
+
 app.use(cors({
-  origin: 'https://www.xmlprodownloader.com.br',
+  origin: function(origin, callback) {
+    if (!origin) return callback(null, true); // para requests sem origem (curl, postman)
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Origem não autorizada pelo CORS'));
+  },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  credentials: true,  // se usar cookies ou auth
 }));
+
 app.use(express.json());
+
+
 
 // Supabase client para validar tokens
 const supabase = createClient(
