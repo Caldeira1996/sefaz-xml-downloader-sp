@@ -73,16 +73,6 @@ const validateToken = async (req, res, next) => {
 
 // Sua lógica, funções, rotas aqui (igual você já fez)
 
-// Exemplo da rota health check
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    servidor: 'Proxy SEFAZ SP',
-    timestamp: new Date().toISOString(),
-    ambiente: process.env.NODE_ENV || 'development'
-  });
-});
-
 // Função para carregar certificado
 const loadCertificate = (certificadoPath, senha) => {
   try {
@@ -332,7 +322,7 @@ app.post('/api/certificados/upload', validateToken, async (req, res) => {
     });
   }
 });
-
+// Exemplo da rota health check
 // Rota de health check
 app.get('/health', (req, res) => {
   res.json({
