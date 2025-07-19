@@ -41,6 +41,10 @@ app.get('/', (req, res) => {
   res.send('Backend SEFAZ rodando OK!');
 });
 
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
+});
+
 // Supabase client
 const supabase = createClient(
   process.env.SUPABASE_URL,
