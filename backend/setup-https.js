@@ -7,8 +7,8 @@ const certDir = path.join(__dirname, 'certs');
 const agent = new https.Agent({
   cert: fs.readFileSync(path.join(certDir, 'client-cert.pem')),
   key: fs.readFileSync(path.join(certDir, 'client-key.pem')),
-  ca: fs.readFileSync(path.join(certDir, 'ca-cert.pem')), // raiz + intermediário concatenados
-  rejectUnauthorized: false,
+  ca: fs.readFileSync(path.join(certDir, 'ca-chain.pem')), // raiz + intermediário concatenados
+  rejectUnauthorized: true,
   //passphrase: '123456' // a senha do seu certificado
 });
 
@@ -22,7 +22,7 @@ const setupHTTPS = () => {
 
   const certPath = path.join(certDir, 'client-cert.pem');
   const keyPath = path.join(certDir, 'client-key.pem');
-  const caPath = path.join(certDir, 'ca-cert.pem'); // <- atualizado
+  const caPath = path.join(certDir, 'ca-chain.pem'); // <- atualizado
 
   if (fs.existsSync(certPath) && fs.existsSync(keyPath) && fs.existsSync(caPath)) {
     return {
