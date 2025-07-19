@@ -50,7 +50,7 @@ nano .env
 # Adicionar:
 HTTPS_PORT=3001
 SERVER_HOST=0.0.0.0
-CORS_ORIGIN=https://7f84b5f5-3524-4288-a243-a7cd684253ac.lovableproject.com
+CORS_ORIGIN=https://www.xmlprodownloader.com.br
 ```
 
 ### 5. Configurar firewall

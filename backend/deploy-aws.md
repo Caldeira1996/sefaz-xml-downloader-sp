@@ -45,7 +45,7 @@ nano .env
 # Configurar:
 HTTPS_PORT=3002
 SERVER_HOST=0.0.0.0
-CORS_ORIGIN=https://7f84b5f5-3524-4288-a243-a7cd684253ac.lovableproject.com
+CORS_ORIGIN=https://www.xmlprodownloader.com.br
 ```
 
 #### 6. Configurar firewall AWS

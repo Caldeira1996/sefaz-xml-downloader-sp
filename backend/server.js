@@ -13,7 +13,11 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.SERVER_HOST || '0.0.0.0';
 
-const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',');
+const allowedOrigins = [
+  'https://www.xmlprodownloader.com.br',
+  'https://xmlprodownloader.com.br',
+  'http://localhost:5173', // opcional para desenvolvimento
+];
 
 app.use(cors({
   origin: function(origin, callback) {
