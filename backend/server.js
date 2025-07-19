@@ -140,7 +140,7 @@ app.post('/api/sefaz/status', validateToken, async (req, res) => {
         path: url.pathname,
         method: 'GET',
         timeout: 10000,
-        ca: caCert,
+        //ca: caCert,
       };
 
       const req = https.request(options, (res) => {

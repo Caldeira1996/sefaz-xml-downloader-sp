@@ -19,7 +19,7 @@ const setupHTTPS = () => {
     return {
       cert: fs.readFileSync(certPath),
       key: fs.readFileSync(keyPath),
-      ca: fs.readFileSync(caPath)
+      //ca: fs.readFileSync(caPath)
     };
   } else {
     console.log('❌ Alguns certificados SSL não foram encontrados em certs/');
