@@ -1,4 +1,4 @@
-const BACKEND_DOMAIN = 'api.xmlprodownloader.com.br';
+const BACKEND_DOMAIN = 'xmlprodownloader.com.br';
 
 export const getBackendUrl = () => {
   // Usar sempre HTTPS e domínio configurado no proxy reverso

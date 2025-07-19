@@ -36,6 +36,11 @@ app.use(cors({
 
 app.use(express.json());
 
+// Rota raiz simples
+app.get('/', (req, res) => {
+  res.send('Backend SEFAZ rodando OK!');
+});
+
 // Supabase client
 const supabase = createClient(
   process.env.SUPABASE_URL,
