@@ -8,6 +8,7 @@ const soap = require('soap');
 const xml2js = require('xml2js');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
+const caCert = fs.readFileSync('./certs/sefaz-intermediate.pem');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -127,7 +128,8 @@ app.post('/api/sefaz/status', validateToken, async (req, res) => {
         port: 443,
         path: url.pathname,
         method: 'GET',
-        timeout: 10000
+        timeout: 10000,
+        ca: caCert,
       };
 
       const req = https.request(options, (res) => {
