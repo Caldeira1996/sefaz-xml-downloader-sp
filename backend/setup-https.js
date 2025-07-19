@@ -7,7 +7,7 @@ const agent = new https.Agent({
   key: fs.readFileSync(path.join(__dirname, 'certs/client-key.pem')),
   ca: fs.readFileSync(path.join(__dirname, 'certs/ca-cert.pem')), // <- combinado root + intermediate
   rejectUnauthorized: true,
-  passphrase: 'SUA_SENHA_AQUI'
+  passphrase: 'Lucas1996'
 });
 
 // Exporta para ser usado nas requisições à SEFAZ
