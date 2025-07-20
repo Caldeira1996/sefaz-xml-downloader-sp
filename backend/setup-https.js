@@ -15,7 +15,7 @@ const agent = new https.Agent({
   key: fs.readFileSync(keyPath),
   ca: fs.readFileSync(caPath),
   rejectUnauthorized: true,
-  // passphrase: 'SENHA_DO_CERTIFICADO_PFX' // se necessário
+  passphrase: process.env.CERT_PASSWORD, // se necessário
 });
 
 // Para servidor local HTTPS

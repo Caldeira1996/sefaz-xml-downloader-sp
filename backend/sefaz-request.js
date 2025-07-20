@@ -11,6 +11,7 @@ const httpsAgent = new https.Agent({
   key: fs.readFileSync(path.join(certDir, 'client-key.pem')),
   ca: fs.readFileSync(path.join(certDir, 'ca-chain.pem')),
   rejectUnauthorized: true,
+  passphrase,
 });
 
 const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
