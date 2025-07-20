@@ -38,11 +38,11 @@ axios.post(
   {
     headers: {
       'Content-Type': 'application/soap+xml; charset=utf-8',
+      'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF'
     },
     httpsAgent,
   }
 ).then(response => {
-  console.log('✅ Resposta da SEFAZ:');
   console.log(response.data);
 }).catch(error => {
   console.error('❌ Erro ao se comunicar com a SEFAZ:');
