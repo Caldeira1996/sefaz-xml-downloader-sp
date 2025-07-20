@@ -1,3 +1,4 @@
+// server-https.js
 const https = require('https');
 const { setupHTTPS } = require('./setup-https');
 const app = require('./server');
@@ -13,13 +14,12 @@ const sslConfig = setupHTTPS();
 
 if (!sslConfig) {
   console.log('❌ Não foi possível carregar os certificados SSL.');
-  console.log('🔧 Execute: chmod +x generate-ssl.sh && ./generate-ssl.sh');
   process.exit(1);
 }
 
 const tryStartServer = (port) => {
   const httpsServer = https.createServer(sslConfig, app);
-  
+
   httpsServer.listen(port, HOST, () => {
     console.log(`🔐 Servidor HTTPS SEFAZ rodando em https://${HOST}:${port}`);
     console.log(`🌐 Health check: https://${HOST}:${port}/health`);
@@ -28,7 +28,7 @@ const tryStartServer = (port) => {
 
   httpsServer.on('error', (error) => {
     if (error.code === 'EADDRINUSE') {
-      console.log(`⚠️  Porta ${port} já está em uso. Tentando porta ${port + 1}...`);
+      console.log(`⚠️ Porta ${port} já está em uso. Tentando porta ${port + 1}...`);
       httpsServer.close();
       tryStartServer(port + 1);
     } else {
