@@ -44,8 +44,8 @@ import fs from 'fs';
 import axios from 'axios';
 
 const httpsAgent = new https.Agent({
-  cert: fs.readFileSync('./certs/cliente-cert.pem'),
-  key: fs.readFileSync('./certs/cliente-key.pem'),
+  cert: fs.readFileSync('./certs/client-cert.pem'),
+  key: fs.readFileSync('./certs/client-key.pem'),
   ca: fs.readFileSync('./certs/ca-chain.pem'),
   rejectUnauthorized: true,
 });
