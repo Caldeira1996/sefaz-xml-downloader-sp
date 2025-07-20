@@ -42,6 +42,12 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
     }
   }, [user]);
 
+  console.log('Autenticação:', {
+  userIdDoToken: req.user?.id,
+  certificadoIdRecebido: req.body.certificadoId
+});
+
+
   const carregarCertificados = async () => {
     try {
       const { data, error } = await supabase
@@ -111,7 +117,7 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
         headers: {
           'Content-Type': 'application/json',
           //'Authorization': `Bearer ${session.access_token}`
-          'Authorization': `Bearer ${token || ''}`
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify(requestBody)
       });
