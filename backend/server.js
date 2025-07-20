@@ -218,6 +218,12 @@ app.post('/api/sefaz/consulta', validateToken, async (req, res) => {
     } = req.body;
 
     console.log('🔍 Iniciando consulta SEFAZ - Tipo:', tipoConsulta, 'Ambiente:', ambiente);
+    // controllers/consultaController.js ou routes/sefaz.js
+    console.log('Autenticação:', {
+      userIdDoToken: req.user?.id,
+      certificadoIdRecebido: req.body.certificadoId
+    });
+
 
     // Buscar dados do certificado no Supabase
     const { data: certificado, error: certError } = await supabase
