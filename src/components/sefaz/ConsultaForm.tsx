@@ -111,7 +111,7 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
         headers: {
           'Content-Type': 'application/json',
           //'Authorization': `Bearer ${session.access_token}`
-          'Autorization': `Bearer ${token || ''}`
+          'Authorization': `Bearer ${token || ''}`
         },
         body: JSON.stringify(requestBody)
       });
