@@ -8,7 +8,7 @@ const xml2js = require('xml2js');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-const caCert = fs.readFileSync('./certs/sefaz-intermediate.pem');
+const certPath = '/home/ubuntu/sefaz-xml-downloader-sp/backend/certs/';
 
 const app = express();
 
@@ -23,7 +23,7 @@ const allowedOrigins = [
 
 // Middleware CORS
 app.use(cors({
-  origin: function(origin, callback) {
+  origin: function (origin, callback) {
     if (!origin) return callback(null, true); // curl, postman etc
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
@@ -67,7 +67,7 @@ const validateToken = async (req, res, next) => {
 
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error } = await supabase.auth.getUser(token);
-    
+
     if (error || !user) {
       return res.status(401).json({ error: 'Token inválido' });
     }
@@ -80,8 +80,6 @@ const validateToken = async (req, res, next) => {
   }
 };
 
-// Sua lógica, funções, rotas aqui (igual você já fez)
-
 // Função para carregar certificado
 const loadCertificate = (certificadoPath, senha) => {
   try {
@@ -91,7 +89,7 @@ const loadCertificate = (certificadoPath, senha) => {
 
     // Carregar certificado PFX/P12
     const certBuffer = fs.readFileSync(certificadoPath);
-    
+
     return {
       pfx: certBuffer,
       passphrase: senha
@@ -105,54 +103,65 @@ const loadCertificate = (certificadoPath, senha) => {
 // Função para criar envelope SOAP para consulta de status
 const createStatusEnvelope = () => {
   return `<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-  <soap:Body>
-    <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
-      <nfeDadosMsg>
-        <consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
-          <tpAmb>2</tpAmb>
-          <cUF>35</cUF>
-          <xServ>STATUS</xServ>
-        </consStatServ>
-      </nfeDadosMsg>
-    </nfeStatusServicoNF>
-  </soap:Body>
-</soap:Envelope>`;
+  <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <soap:Body>
+      <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
+        <nfeDadosMsg>
+          <consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+            <tpAmb>2</tpAmb>
+            <cUF>35</cUF>
+            <xServ>STATUS</xServ>
+          </consStatServ>
+        </nfeDadosMsg>
+      </nfeStatusServicoNF>
+    </soap:Body>
+  </soap:Envelope>`;
 };
 
 // Rota para verificar status da SEFAZ
 app.post('/api/sefaz/status', validateToken, async (req, res) => {
   try {
     const { ambiente = 'homologacao' } = req.body;
-    
+
     console.log('🔍 Verificando status SEFAZ SP - Ambiente:', ambiente);
-    
-    const sefazUrl = ambiente === 'producao' 
-      ? process.env.SEFAZ_PRODUCAO_URL 
+
+    const sefazUrl = ambiente === 'producao'
+      ? process.env.SEFAZ_PRODUCAO_URL
       : process.env.SEFAZ_HOMOLOGACAO_URL;
 
     // Verificar conectividade básica primeiro
-   const connectivityTest = new Promise((resolve, reject) => {
-    const url = new URL(sefazUrl);
-    const options = {
-      hostname: url.hostname,
-      port: 443,
-      path: url.pathname,
-      method: 'GET',
-      timeout: 10000,
-      ca: caCert,
-    };
+    const connectivityTest = new Promise((resolve, reject) => {
+      const url = new URL(sefazUrl);
+      const options = {
+        hostname: url.hostname,
+        port: 443,
+        path: url.pathname + url.search,
+        method: 'POST',
+        key: fs.readFileSync(certPath + 'client-key.pem'),    // ajuste aqui
+        cert: fs.readFileSync(certPath + 'client-cert.pem'),  // ajuste aqui
+        ca: fs.readFileSync(certPath + 'ca-chain.pem'),       // ajuste aqui
+        headers: {
+          'Content-Type': 'application/soap+xml; charset=utf-8',
+        }
+      };
 
-      const req = https.request(options, (res) => {
-        resolve({
-          success: true,
-          statusCode: res.statusCode,
-          headers: res.headers
+      const envelope = createStatusEnvelope();
+
+      const req = https.request(options, res => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          resolve({
+            statusCode: res.statusCode,
+            headers: res.headers,
+            body: data,
+          });
         });
       });
 
-      req.on('error', (error) => {
-        reject(error);
+      req.on('error', e => {
+        console.error('Erro na requisição HTTPS:', e);
+        reject(e);
       });
 
       req.on('timeout', () => {
@@ -160,45 +169,37 @@ app.post('/api/sefaz/status', validateToken, async (req, res) => {
         reject(new Error('Timeout na conexão'));
       });
 
+      req.write(envelope);
       req.end();
     });
 
-    try {
-      const result = await connectivityTest;
-      
-      res.json({
-        success: true,
-        ambiente: ambiente,
-        url: sefazUrl,
-        conectividade: {
-          status: 'OK',
-          statusCode: result.statusCode,
-          servidor: result.headers.server || 'Desconhecido'
-        },
-        timestamp: new Date().toISOString(),
-        observacao: 'Conectividade básica OK. Para testes completos, será necessário certificado digital.'
-      });
-    } catch (error) {
-      console.error('Erro na conectividade:', error);
-      
-      res.json({
-        success: false,
-        ambiente: ambiente,
-        url: sefazUrl,
-        error: error.message,
-        conectividade: {
-          status: 'ERRO',
-          detalhes: error.message
-        },
-        timestamp: new Date().toISOString()
-      });
-    }
+    const result = await connectivityTest;
+
+    res.json({
+      success: true,
+      ambiente,
+      url: sefazUrl,
+      conectividade: {
+        status: 'OK',
+        statusCode: result.statusCode,
+        servidor: result.headers.server || 'Desconhecido'
+      },
+      timestamp: new Date().toISOString(),
+      observacao: 'Conectividade básica OK. Para testes completos, será necessário certificado digital.'
+    });
 
   } catch (error) {
-    console.error('Erro geral:', error);
-    res.status(500).json({
+    console.error('Erro na conectividade:', error);
+
+    res.json({
       success: false,
+      ambiente: req.body.ambiente || 'homologacao',
+      url: process.env.SEFAZ_HOMOLOGACAO_URL,
       error: error.message,
+      conectividade: {
+        status: 'ERRO',
+        detalhes: error.message
+      },
       timestamp: new Date().toISOString()
     });
   }
@@ -207,13 +208,13 @@ app.post('/api/sefaz/status', validateToken, async (req, res) => {
 // Rota para consultar NFe
 app.post('/api/sefaz/consulta', validateToken, async (req, res) => {
   try {
-    const { 
-      certificadoId, 
-      cnpjConsultado, 
-      tipoConsulta, 
+    const {
+      certificadoId,
+      cnpjConsultado,
+      tipoConsulta,
       ambiente = 'homologacao',
       dataInicio,
-      dataFim 
+      dataFim
     } = req.body;
 
     console.log('🔍 Iniciando consulta SEFAZ - Tipo:', tipoConsulta, 'Ambiente:', ambiente);
@@ -236,10 +237,10 @@ app.post('/api/sefaz/consulta', validateToken, async (req, res) => {
     // Por enquanto, vamos retornar uma simulação melhorada
     // TODO: Implementar consulta real quando o certificado estiver disponível
     console.log('📝 Simulando consulta (certificado não carregado ainda)...');
-    
+
     const totalXmls = Math.floor(Math.random() * 5) + 1;
     const xmlsBaixados = totalXmls;
-    
+
     const resultado = {
       success: true,
       totalXmls,
@@ -278,7 +279,7 @@ app.post('/api/sefaz/consulta', validateToken, async (req, res) => {
       const xmlsSimulados = [];
       for (let i = 0; i < totalXmls; i++) {
         const chaveNfe = `35${new Date().getFullYear()}${cnpjConsultado.padStart(14, '0')}55001${String(i + 1).padStart(9, '0')}${Math.floor(Math.random() * 10)}`;
-        
+
         xmlsSimulados.push({
           consulta_id: consulta.id,
           user_id: req.user.id,
@@ -317,7 +318,7 @@ app.post('/api/certificados/upload', validateToken, async (req, res) => {
   try {
     // TODO: Implementar upload de certificado PFX/P12
     // Por enquanto, apenas confirmamos que o endpoint existe
-    
+
     res.json({
       success: true,
       message: 'Endpoint de upload preparado. Upload de certificados será implementado.',
@@ -331,7 +332,7 @@ app.post('/api/certificados/upload', validateToken, async (req, res) => {
     });
   }
 });
-// Exemplo da rota health check
+
 // Rota de health check
 app.get('/health', (req, res) => {
   res.json({
@@ -341,6 +342,6 @@ app.get('/health', (req, res) => {
     ambiente: process.env.NODE_ENV || 'development'
   });
 });
-// No final, exporta o app para o server HTTPS
-module.exports = app;
 
+// Exporta o app
+module.exports = app;
