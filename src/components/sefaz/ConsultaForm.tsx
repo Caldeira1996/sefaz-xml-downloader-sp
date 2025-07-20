@@ -102,6 +102,8 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
         ...(dataFim && { dataFim: dataFim.toISOString().split('T')[0] })
       };
       
+      const token = localStorage.getItem('token');
+
       console.log('Iniciando consulta SEFAZ via backend...', requestBody);
       
       const response = await makeBackendRequest('/api/sefaz/consulta', {

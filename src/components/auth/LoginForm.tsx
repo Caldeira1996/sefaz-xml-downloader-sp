@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,11 +15,11 @@ export const LoginForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validação básica de entrada
     const sanitizedEmail = sanitizeInput(email);
     const sanitizedPassword = password.trim();
-    
+
     if (!sanitizedEmail || !sanitizedPassword) {
       toast({
         title: "Erro de validação",
@@ -55,17 +54,14 @@ export const LoginForm = () => {
 
     try {
       if (isSignUp) {
-        // Configurar URL de redirect correta para confirmação de email
         const redirectUrl = `${window.location.origin}/`;
-        
+
         const { error } = await supabase.auth.signUp({
           email: sanitizedEmail,
           password: sanitizedPassword,
-          options: {
-            emailRedirectTo: redirectUrl
-          }
+          options: { emailRedirectTo: redirectUrl }
         });
-        
+
         if (error) {
           if (error.message.includes('already registered')) {
             toast({
@@ -83,11 +79,11 @@ export const LoginForm = () => {
           });
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email: sanitizedEmail,
           password: sanitizedPassword,
         });
-        
+
         if (error) {
           if (error.message.includes('Invalid login credentials')) {
             toast({
@@ -99,9 +95,17 @@ export const LoginForm = () => {
             throw error;
           }
         } else {
+          // Aqui salva o token JWT para uso nas chamadas futuras à API
+          const token = data.session?.access_token;
+          if (token) {
+            localStorage.setItem('token', token);
+          }
+
           toast({
             title: "Login realizado com sucesso!",
           });
+
+          // Aqui você pode redirecionar ou atualizar estado global, se quiser
         }
       }
     } catch (error: any) {
