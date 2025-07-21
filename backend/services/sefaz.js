@@ -56,7 +56,7 @@ const createStatusEnvelope = () => `<?xml version="1.0" encoding="utf-8"?>
  * @param {string} [params.dataFim]
  * @returns {Promise<any>} resposta da SEFAZ
  */
-aasync function consultarNFe({ certificadoPath, senhaCertificado, cnpjConsultado, tipoConsulta, ambiente }) {
+async function consultarNFe({ certificadoPath, senhaCertificado, cnpjConsultado, tipoConsulta, ambiente }) {
   // certificadoPath aqui pode ser só o nome do arquivo (sem ".pfx") ou o caminho completo.
   // Se for o nome, a função já monta o caminho dentro da pasta 'certificates'.
   const httpsAgent = createAgentFromPfx(certificadoPath, senhaCertificado);
