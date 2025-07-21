@@ -3,7 +3,7 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const { convertPfxToPem } = require('../convert-pxf-to-pem');
-const { supabase } = require('../supabaseClient'); // seu client supabase configurado
+const { supabase } = require('../supabase'); // seu client supabase configurado
 
 const router = express.Router();
 const upload = multer(); // memória
