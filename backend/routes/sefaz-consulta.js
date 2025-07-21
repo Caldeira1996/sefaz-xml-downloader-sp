@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { buscarCertificadoPorId } = require('../services/certificates');
+const { buscarCertificadoPorId } = require('../services/certificados');
 const { consultarNFe } = require('../services/sefaz');
 
 // POST /api/sefaz/consulta
