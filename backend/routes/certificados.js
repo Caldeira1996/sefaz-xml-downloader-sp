@@ -1,7 +1,7 @@
 // routes/certificados.js
 const express = require('express');
 const { validateToken } = require('../services/auth');
-const { buscarCertificado } = require('../services/certificado');
+const { buscarCertificado } = require('../services/certificados');
 
 const router = express.Router();
 
