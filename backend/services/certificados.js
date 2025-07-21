@@ -1,5 +1,5 @@
 // services/certificados.js
-const supabaseClient = require('..supabase/supabase'); // ajuste conforme seu caminho real
+const supabaseClient = require('../supabase'); // ajuste conforme seu caminho real
 
 async function buscarCertificado(certificadoId, user) {
   const { data: certificado, error: certError } = await supabaseClient
