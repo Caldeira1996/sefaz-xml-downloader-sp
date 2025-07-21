@@ -1,20 +1,33 @@
 import React, { useState } from "react";
+import axios from 'axios';
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, LogOut, Search, Settings, List, Plus } from "lucide-react";
 
-import ConsultaForm from "@/components/sefaz/ConsultaForm";
-import CertificadosList from "@/components/sefaz/CertificadosList";
-import CertificadoForm from "@/components/sefaz/CertificadoForm";
-import XmlsList from "../components/sefaz/XmlsList";
+import { ConsultaForm } from "@/components/sefaz/ConsultaForm";
+import { CertificadosList } from "@/components/sefaz/CertificadosList";
+import { CertificadoForm } from "@/components/sefaz/CertificadoForm";
+import { XmlsList } from "@/components/sefaz/XmlsList";
 
 export default function Index() {
   const { user, loading, signOut } = useAuth();
+  return <div>Usuário: {user?.email || "não logado"}</div>;
 
   const [certificadosTab, setCertificadosTab] = useState<"listar" | "adicionar">("listar");
   const [refreshCertificados, setRefreshCertificados] = useState(false);
   const [refreshXmls, setRefreshXmls] = useState(false);
+
+  // dentro do componente Index
+  const fetchXmls = async () => {
+    try {
+      const response = await axios.get('/api/xmls'); // ajuste a URL conforme sua API
+      return response.data; // deve ser XmlNfe[]
+    } catch (error) {
+      throw new Error('Falha ao buscar XMLs');
+    }
+  };
+
 
   const handleConsultaIniciada = () => {
     setRefreshXmls(true);
@@ -105,7 +118,7 @@ export default function Index() {
           </TabsContent>
 
           <TabsContent value="xmls" className="space-y-6">
-            <XmlsList shouldRefresh={refreshXmls} />
+            <XmlsList shouldRefresh={refreshXmls} fetchXmls={fetchXmls} />
           </TabsContent>
         </Tabs>
       </main>
