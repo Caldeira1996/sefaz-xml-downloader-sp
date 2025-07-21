@@ -4,7 +4,7 @@ const { buscarCertificadoPorId } = require('./certificados');
 const { consultarNFe } = require('../services/sefaz');
 
 // Middleware simples de validação de token (pode importar do seu service)
-const { validateToken } = require('../middlewares/auth'); // se já tiver
+const { validateToken } = require('../services/auth'); // se já tiver
 // Se não tiver, implemente aqui:
 
 // POST /api/sefaz/status
