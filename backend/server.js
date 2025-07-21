@@ -2,12 +2,15 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const uploadCertRouter = require('./routes/upload-cert')
+const authRouter = require ('./routes/auth');
 
 // Importa as rotas (que você deve ter separado em arquivos na pasta routes)
 const sefazConsultaRoutes = require('./routes/sefaz-consulta');
 const certificadosRoutes = require('./routes/certificados'); // Caso crie essa rota para upload
 
 const app = express();
+
+app.use('/api/auth', authRouter);
 
 app.use('/', uploadCertRouter);
 
