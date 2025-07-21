@@ -7,10 +7,15 @@ const soap = require('soap');
 const xml2js = require('xml2js');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
+import sefazConsultaRoutes from './routes/sefaz-consulta';
+
+DeviceMotionEvent.config()
 
 const certPath = '/home/ubuntu/sefaz-xml-downloader-sp/backend/certs/';
 
 const app = express();
+
+const sefazConsultaRoutes = require('./routes/sefaz-consulta');
 
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.SERVER_HOST || '0.0.0.0';
@@ -40,6 +45,9 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.send('Backend SEFAZ rodando OK!');
 });
+
+const sefazConsultaRoutes = require('./routes/sefaz-consulta');
+app.use('/api/sefaz', sefazConsultaRoutes);
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
