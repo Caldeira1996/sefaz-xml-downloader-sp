@@ -1,18 +1,10 @@
-// services/validate-cert.js
-const fs = require('fs');
 const https = require('https');
 const axios = require('axios');
 
-async function validarCertificado({ certificadoPath, senhaCertificado }) {
+async function validarCertificadoBuffer({ bufferPfx, senhaCertificado }) {
   try {
-    if (!fs.existsSync(certificadoPath)) {
-      return { valido: false, erro: 'Certificado não encontrado no caminho informado' };
-    }
-
-    const pfxBuffer = fs.readFileSync(certificadoPath);
-
     const httpsAgent = new https.Agent({
-      pfx: pfxBuffer,
+      pfx: bufferPfx,
       passphrase: senhaCertificado,
       rejectUnauthorized: false,
     });
@@ -52,4 +44,4 @@ async function validarCertificado({ certificadoPath, senhaCertificado }) {
   }
 }
 
-module.exports = { validarCertificado };
+module.exports = { validarCertificadoBuffer };

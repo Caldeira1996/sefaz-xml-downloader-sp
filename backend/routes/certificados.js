@@ -1,17 +1,21 @@
+// routes/certificados.js
 const express = require('express');
-const router = express.Router();
 const { validateToken } = require('../services/auth');
+const { buscarCertificado } = require('../services/certificado');
 
-router.post('/upload', validateToken, async (req, res) => {
+const router = express.Router();
+
+router.get('/:id', validateToken, async (req, res) => {
   try {
-    // TODO: implementação upload
-    res.json({
-      success: true,
-      message: 'Endpoint de upload preparado. Upload será implementado.',
-    });
-  } catch (error) {
-    console.error('Erro no upload:', error);
-    res.status(500).json({ success: false, error: error.message });
+    const certificadoId = req.params.id;
+    const user = req.user; // setado pelo validateToken
+
+    const certificado = await buscarCertificado(certificadoId, user);
+
+    res.json({ sucesso: true, certificado });
+  } catch (err) {
+    console.error(err);
+    res.status(404).json({ sucesso: false, erro: err.message });
   }
 });
 
