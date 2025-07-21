@@ -1,42 +1,31 @@
-// services/sefaz.js
-
-const soap = require('soap');
 const fs = require('fs');
-const path = require('path');
-const { getCertificado } = require('./certificados');
 
-async function consultarXml(certificadoNome, xml) {
-  const certData = getCertificado(certificadoNome);
-
-  if (!certData) {
-    throw new Error('Certificado não encontrado');
+const loadCertificate = (certificadoPath, senha) => {
+  if (!fs.existsSync(certificadoPath)) {
+    throw new Error('Arquivo de certificado não encontrado');
   }
+  const certBuffer = fs.readFileSync(certificadoPath);
+  return { pfx: certBuffer, passphrase: senha };
+};
 
-  // Exemplo de chamada SOAP — você precisa adaptar ao WSDL correto da SEFAZ
-  const url = 'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeconsulta2.asmx?wsdl';
-
-  const options = {
-    wsdl_options: {
-      pfx: certData.pfx,
-      passphrase: certData.password,
-      rejectUnauthorized: false
-    }
-  };
-
-  const client = await soap.createClientAsync(url, options);
-
-  const args = {
-    nfeDadosMsg: {
-      // XML já assinado
-      _xml: xml
-    }
-  };
-
-  const result = await client.nfeConsultaNF2Async(args);
-
-  return result;
-}
+const createStatusEnvelope = () => `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
+      <nfeDadosMsg>
+        <consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+          <tpAmb>2</tpAmb>
+          <cUF>35</cUF>
+          <xServ>STATUS</xServ>
+        </consStatServ>
+      </nfeDadosMsg>
+    </nfeStatusServicoNF>
+  </soap:Body>
+</soap:Envelope>`;
 
 module.exports = {
-  consultarXml
+  loadCertificate,
+  createStatusEnvelope,
 };
