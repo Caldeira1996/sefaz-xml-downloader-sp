@@ -47,8 +47,11 @@ router.post('/consulta', async (req, res) => {
       return res.status(403).json({ error: 'Certificado não encontrado ou não autorizado' });
     }
 
+    console.log(certificado);
+    
     const resultado = await consultarNFe({
-      certificado,
+      certificadoPath: certificado.caminho_arquivo, // ou certificado.path, depende do seu objeto
+      senhaCertificado: certificado.senha_certificado, // ou o nome correto da propriedade
       cnpjConsultado,
       tipoConsulta,
       ambiente,

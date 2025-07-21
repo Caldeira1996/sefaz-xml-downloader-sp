@@ -56,17 +56,11 @@ const createStatusEnvelope = () => `<?xml version="1.0" encoding="utf-8"?>
  * @param {string} [params.dataFim]
  * @returns {Promise<any>} resposta da SEFAZ
  */
-async function consultarNFe({ certificadoPath, senhaCertificado, cnpjConsultado, tipoConsulta, ambiente }) {
-  // Lê o arquivo .pfx do disco (caminho do upload)
-  const pfxBuffer = fs.readFileSync(certificadoPath);
+aasync function consultarNFe({ certificadoPath, senhaCertificado, cnpjConsultado, tipoConsulta, ambiente }) {
+  // certificadoPath aqui pode ser só o nome do arquivo (sem ".pfx") ou o caminho completo.
+  // Se for o nome, a função já monta o caminho dentro da pasta 'certificates'.
+  const httpsAgent = createAgentFromPfx(certificadoPath, senhaCertificado);
 
-  const httpsAgent = new https.Agent({
-    pfx: pfxBuffer,
-    passphrase: senhaCertificado,
-    rejectUnauthorized: false, // homologação, true em produção
-  });
-
-  // Monta URL conforme ambiente
   const url = ambiente === 'producao'
     ? 'https://nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx'
     : 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx';
@@ -89,6 +83,7 @@ async function consultarNFe({ certificadoPath, senhaCertificado, cnpjConsultado,
     throw error;
   }
 }
+
 
 
 module.exports = {
