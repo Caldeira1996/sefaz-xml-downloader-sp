@@ -7,7 +7,6 @@ const soap = require('soap');
 const xml2js = require('xml2js');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
-import sefazConsultaRoutes from './routes/sefaz-consulta';
 
 DeviceMotionEvent.config()
 
