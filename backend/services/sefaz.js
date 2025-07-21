@@ -33,7 +33,11 @@ const createStatusEnvelope = () => `<?xml version="1.0" encoding="utf-8"?>
 </soap:Envelope>`;
 
 async function consultarNFe({ certificadoBuffer, senhaCertificado, cnpjConsultado, tipoConsulta, ambiente }) {
-  const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
+  const httpsAgent = new https.Agent({
+    pfx: certificadoBuffer,
+    passphrase: senhaCertificado,
+    rejectUnauthorized: false
+  });
 
   const url = ambiente === 'producao'
     ? 'https://nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx'

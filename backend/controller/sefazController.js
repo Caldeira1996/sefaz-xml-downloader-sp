@@ -6,14 +6,13 @@ const { consultarNFe } = require('../services/sefaz');
  * Espera receber:
  * - certificadoId: ID do certificado salvo no banco
  * - senhaCertificado: senha do certificado
- * - cnpjConsultado: CNPJ alvo da consulta (pode ser opcional ou usado em outros envelopes)
+ * - cnpjConsultado: CNPJ alvo da consulta (pode ser opcional)
  * - ambiente: 'producao' ou 'homologacao'
- * O usuário autenticado deve estar disponível em req.user (middleware de autenticação).
  */
 exports.consulta = async (req, res) => {
   try {
     const { certificadoId, senhaCertificado, cnpjConsultado, ambiente } = req.body;
-    const user = req.user; // middleware de autenticação deve preencher req.user
+    const user = req.user;
 
     if (!certificadoId || !senhaCertificado || !ambiente) {
       return res.status(400).json({ error: 'Parâmetros obrigatórios faltando' });
@@ -31,7 +30,7 @@ exports.consulta = async (req, res) => {
       senhaCertificado,
       cnpjConsultado,
       ambiente,
-      tipoConsulta: 'status', // ajuste conforme sua lógica
+      tipoConsulta: 'status',
     });
 
     res.json({ sucesso: true, resultado });
