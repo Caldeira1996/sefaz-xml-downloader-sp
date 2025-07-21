@@ -1,6 +1,15 @@
 const fs = require('fs');
 const axios = require('axios');
 const https = require('https');
+const path = require('path');
+
+// função utilitária para criar https.Agent
+function createAgentFromPfx(nomeCertificado, senha) {
+  const certPath = path.join(__dirname, 'certificates', `${nomeCertificado}.pfx`);
+  if (!fs.existsSync(certPath)) throw new Error('Certificado não encontrado');
+  const pfxBuffer = fs.readFileSync(certPath);
+  return new https.Agent({ pfx: pfxBuffer, passphrase: senha, rejectUnauthorized: false });
+}
 
 /**
  * Carrega o certificado PFX do caminho informado
@@ -47,30 +56,21 @@ const createStatusEnvelope = () => `<?xml version="1.0" encoding="utf-8"?>
  * @param {string} [params.dataFim]
  * @returns {Promise<any>} resposta da SEFAZ
  */
-async function consultarNFe({ certificado, cnpjConsultado, tipoConsulta, ambiente, dataInicio, dataFim }) {
-  // Aqui você deve montar o envelope SOAP conforme tipoConsulta
-  // Vou deixar um exemplo simplificado de status, você precisa adaptar para sua consulta
+async function consultarNFe({ certificadoPath, senhaCertificado, cnpjConsultado, tipoConsulta, ambiente }) {
+  // Lê o arquivo .pfx do disco (caminho do upload)
+  const pfxBuffer = fs.readFileSync(certificadoPath);
 
-  if (!certificado || !certificado.certificado_base64 || !certificado.senha_certificado) {
-    throw new Error('Certificado inválido');
-  }
-
-  // Decodifica o certificado base64 para Buffer
-  const pfxBuffer = Buffer.from(certificado.certificado_base64, 'base64');
-
-  // Configura o HTTPS Agent com certificado e senha
   const httpsAgent = new https.Agent({
     pfx: pfxBuffer,
-    passphrase: certificado.senha_certificado,
-    rejectUnauthorized: false, // para homologação, em produção recomenda true
+    passphrase: senhaCertificado,
+    rejectUnauthorized: false, // homologação, true em produção
   });
 
-  // Monta a URL do Web Service conforme ambiente (exemplo SP)
+  // Monta URL conforme ambiente
   const url = ambiente === 'producao'
-    ? 'https://nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx' // URL produção
-    : 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx'; // URL homologação
+    ? 'https://nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx'
+    : 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx';
 
-  // Exemplo envelope - status serviço
   const xmlEnvelope = createStatusEnvelope();
 
   try {
@@ -83,14 +83,13 @@ async function consultarNFe({ certificado, cnpjConsultado, tipoConsulta, ambient
       timeout: 15000,
     });
 
-    // Retorna o corpo da resposta (XML)
     return response.data;
-
   } catch (error) {
     console.error('Erro na consulta SEFAZ:', error);
     throw error;
   }
 }
+
 
 module.exports = {
   loadCertificate,
