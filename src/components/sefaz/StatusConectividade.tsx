@@ -191,7 +191,7 @@ export const StatusConectividade = () => {
   const hostname = window.location.hostname;
   const isLovable = hostname.endsWith('.lovableproject.com') || hostname.endsWith('.lovable.app');
 
-  return (
+return (
     <Card className="mb-4">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
@@ -217,10 +217,10 @@ export const StatusConectividade = () => {
             ) : (
               <XCircle className="h-5 w-5 text-red-500" />
             )}
-
+            
             <div>
               <div className="flex items-center gap-2">
-                <Badge
+                <Badge 
                   variant={status?.conectado ? "default" : "destructive"}
                   className="text-xs"
                 >
@@ -231,20 +231,20 @@ export const StatusConectividade = () => {
                     {status.ambiente}
                   </span>
                 )}
-                <Badge
+                <Badge 
                   variant={servidorOnline ? "default" : "destructive"}
                   className="text-xs"
                 >
                   Backend: {servidorOnline ? 'Online' : 'Offline'}
                 </Badge>
               </div>
-
+              
               {status && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Última verificação: {status.ultimaVerificacao}
                 </p>
               )}
-
+              
               {status?.detalhes && (
                 <p className={`text-xs mt-1 ${status.conectado ? 'text-green-600' : 'text-red-600'}`}>
                   {status.detalhes}
@@ -271,16 +271,16 @@ export const StatusConectividade = () => {
           </Button>
         </div>
 
-        {/* Diagnóstico detalhado caso backend offline */}
+        {/* Informações de diagnóstico */}
         {!servidorOnline && status && (
           <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-xs text-red-700">
             <div className="font-semibold mb-2">🔍 Diagnóstico:</div>
-
+            
             <div className="space-y-1">
               <div><strong>🌐 Ambiente:</strong> {isLovable ? 'Lovable' : 'Produção/Local'}</div>
               <div><strong>📡 Protocolo:</strong> {isHttps ? 'HTTPS' : 'HTTP'}</div>
               <div><strong>🎯 URL Testada:</strong> {status.urlUsada || backendUrl}</div>
-
+              
               {status.errorType === 'TIMEOUT_ERROR' && (
                 <div className="mt-2 p-2 bg-orange-100 border border-orange-300 rounded">
                   <div><strong>⏱️ Erro de Timeout</strong></div>
@@ -290,7 +290,7 @@ export const StatusConectividade = () => {
                   <div>• Configure nginx para proxy reverso na porta 443</div>
                 </div>
               )}
-
+              
               {status.errorType === 'SSL_ERROR' && (
                 <div className="mt-2 p-2 bg-orange-100 border border-orange-300 rounded">
                   <div><strong>⚠️ Certificado SSL Inválido</strong></div>
@@ -298,7 +298,7 @@ export const StatusConectividade = () => {
                   <div>• Configure nginx com SSL adequado</div>
                 </div>
               )}
-
+              
               {status.errorType === 'NETWORK_ERROR' && (
                 <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded">
                   <div><strong>📡 Erro de Rede</strong></div>
@@ -314,3 +314,4 @@ export const StatusConectividade = () => {
     </Card>
   );
 };
+

@@ -99,17 +99,25 @@ export const XmlsList = ({
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  return (
+ return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>XMLs das NFe Baixados</CardTitle>
         <div className="flex gap-2">
-          <Button onClick={carregarXmls} variant="outline" size="sm" disabled={loading}>
+          <Button 
+            onClick={carregarXmls} 
+            variant="outline" 
+            size="sm"
+            disabled={loading}
+          >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Atualizar
           </Button>
           {xmls.length > 0 && (
-            <Button onClick={downloadTodosXmls} size="sm">
+            <Button 
+              onClick={downloadTodosXmls}
+              size="sm"
+            >
               <Download className="h-4 w-4 mr-2" />
               Baixar Todos
             </Button>
@@ -144,7 +152,7 @@ export const XmlsList = ({
               <TableBody>
                 {xmls.map((xml) => (
                   <TableRow key={xml.id}>
-                    <TableCell>{xml.numero_nfe}</TableCell>
+                    <TableCell className="font-medium">{xml.numero_nfe}</TableCell>
                     <TableCell className="font-mono text-xs">{xml.chave_nfe}</TableCell>
                     <TableCell className="max-w-48 truncate" title={xml.razao_social_emitente}>
                       {xml.razao_social_emitente}
@@ -154,9 +162,15 @@ export const XmlsList = ({
                     <TableCell>{formatCurrency(xml.valor_total)}</TableCell>
                     <TableCell>{getStatusBadge(xml.status_manifestacao)}</TableCell>
                     <TableCell>
-                      <Button size="sm" variant="outline" onClick={() => downloadXml(xml)}>
-                        <Download className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => downloadXml(xml)}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

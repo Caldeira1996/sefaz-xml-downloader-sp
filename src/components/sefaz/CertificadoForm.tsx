@@ -186,7 +186,7 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
     setCnpj(formatted);
   };
 
-  return (
+return (
     <Card>
       <CardHeader>
         <CardTitle>Adicionar Certificado Digital</CardTitle>

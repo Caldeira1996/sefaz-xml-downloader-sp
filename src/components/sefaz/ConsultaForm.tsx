@@ -178,8 +178,8 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
   const cnpjDiferente =
     certificadoSelecionadoObj &&
     cnpjConsulta.replace(/\D/g, '') !== certificadoSelecionadoObj.cnpj.replace(/\D/g, '');
-
-  return (
+    
+return (
     <div className="space-y-4">
       {/* Componente de Status de Conectividade */}
       <StatusConectividade />
@@ -212,9 +212,7 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
                   <SelectItem key={cert.id} value={cert.id}>
                     <div className="flex items-center gap-2">
                       {cert.is_principal && <ShieldCheck className="h-4 w-4 text-primary" />}
-                      <span>
-                        {cert.nome} - {formatCnpj(cert.cnpj)} ({cert.ambiente})
-                      </span>
+                      <span>{cert.nome} - {formatCnpj(cert.cnpj)} ({cert.ambiente})</span>
                     </div>
                   </SelectItem>
                 ))}
@@ -224,9 +222,7 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
               <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
                 {certificadoSelecionadoObj.is_principal && <ShieldCheck className="h-3 w-3 text-primary" />}
                 Ambiente: <span className="font-medium">{certificadoSelecionadoObj.ambiente}</span>
-                {certificadoSelecionadoObj.is_principal && (
-                  <span className="text-primary font-medium">(Principal)</span>
-                )}
+                {certificadoSelecionadoObj.is_principal && <span className="text-primary font-medium">(Principal)</span>}
               </p>
             )}
           </div>
@@ -245,8 +241,8 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
                 <Info className="h-4 w-4" />
                 <AlertDescription>
                   <strong>Atenção:</strong> O CNPJ consultado é diferente do CNPJ do certificado.
-                  Você está consultando NFes direcionadas ao CNPJ <strong>{formatCnpj(cnpjConsulta)}</strong> usando o certificado do CNPJ{' '}
-                  <strong>{formatCnpj(certificadoSelecionadoObj?.cnpj || '')}</strong>.
+                  Você está consultando NFes direcionadas ao CNPJ <strong>{formatCnpj(cnpjConsulta)}</strong>
+                  usando o certificado do CNPJ <strong>{formatCnpj(certificadoSelecionadoObj?.cnpj || '')}</strong>.
                 </AlertDescription>
               </Alert>
             )}
@@ -260,14 +256,22 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className={cn('w-full justify-start text-left font-normal', !dataInicio && 'text-muted-foreground')}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dataInicio && "text-muted-foreground"
+                    )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dataInicio ? format(dataInicio, 'dd/MM/yyyy') : 'Selecionar data'}
+                    {dataInicio ? format(dataInicio, "dd/MM/yyyy") : "Selecionar data"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={dataInicio} onSelect={setDataInicio} initialFocus />
+                  <Calendar
+                    mode="single"
+                    selected={dataInicio}
+                    onSelect={setDataInicio}
+                    initialFocus
+                  />
                 </PopoverContent>
               </Popover>
             </div>
@@ -278,14 +282,22 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className={cn('w-full justify-start text-left font-normal', !dataFim && 'text-muted-foreground')}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dataFim && "text-muted-foreground"
+                    )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dataFim ? format(dataFim, 'dd/MM/yyyy') : 'Selecionar data'}
+                    {dataFim ? format(dataFim, "dd/MM/yyyy") : "Selecionar data"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={dataFim} onSelect={setDataFim} initialFocus />
+                  <Calendar
+                    mode="single"
+                    selected={dataFim}
+                    onSelect={setDataFim}
+                    initialFocus
+                  />
                 </PopoverContent>
               </Popover>
             </div>
@@ -293,27 +305,48 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
 
           {(dataInicio || dataFim) && (
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setDataInicio(undefined)} disabled={!dataInicio}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDataInicio(undefined)}
+                disabled={!dataInicio}
+              >
                 Limpar Data Início
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setDataFim(undefined)} disabled={!dataFim}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDataFim(undefined)}
+                disabled={!dataFim}
+              >
                 Limpar Data Fim
               </Button>
             </div>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Button onClick={() => handleConsulta('manifestacao')} disabled={loading} className="w-full">
+            <Button
+              onClick={() => handleConsulta('manifestacao')}
+              disabled={loading}
+              className="w-full"
+            >
               {loading ? 'Consultando...' : 'Consultar Manifestações'}
             </Button>
-
-            <Button onClick={() => handleConsulta('download_nfe')} disabled={loading} variant="secondary" className="w-full">
+            
+            <Button
+              onClick={() => handleConsulta('download_nfe')}
+              disabled={loading}
+              variant="secondary"
+              className="w-full"
+            >
               {loading ? 'Baixando...' : 'Baixar XMLs'}
             </Button>
           </div>
 
           {certificados.length === 0 && (
-            <div className="text-center text-muted-foreground p-4">Nenhum certificado encontrado. Adicione um certificado primeiro.</div>
+            <div className="text-center text-muted-foreground p-4">
+              Nenhum certificado encontrado. Adicione um certificado primeiro.
+            </div>
           )}
         </CardContent>
       </Card>
@@ -329,58 +362,46 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
                 <AlertCircle className="h-5 w-5 text-red-500" />
               )}
               Resultado da Consulta
-              {ultimoResultado.servidor && <Badge variant="outline" className="ml-auto">{ultimoResultado.servidor}</Badge>}
+              {ultimoResultado.servidor && (
+                <Badge variant="outline" className="ml-auto">
+                  {ultimoResultado.servidor}
+                </Badge>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {ultimoResultado.success ? (
               <div className="space-y-2">
-                <p>
-                  <strong>XMLs encontrados:</strong> {ultimoResultado.totalXmls}
-                </p>
-                <p>
-                  <strong>XMLs baixados:</strong> {ultimoResultado.xmlsBaixados}
-                </p>
+                <p><strong>XMLs encontrados:</strong> {ultimoResultado.totalXmls}</p>
+                <p><strong>XMLs baixados:</strong> {ultimoResultado.xmlsBaixados}</p>
                 {ultimoResultado.detalhes && (
-                  <p>
-                    <strong>Detalhes:</strong> {ultimoResultado.detalhes}
-                  </p>
+                  <p><strong>Detalhes:</strong> {ultimoResultado.detalhes}</p>
                 )}
                 {ultimoResultado.ambiente && (
-                  <p>
-                    <strong>Ambiente:</strong> {ultimoResultado.ambiente}
-                  </p>
+                  <p><strong>Ambiente:</strong> {ultimoResultado.ambiente}</p>
                 )}
               </div>
             ) : (
               <div className="space-y-2">
-                <p className="text-red-600">
-                  <strong>Erro:</strong> {ultimoResultado.error}
-                </p>
-                {ultimoResultado.details && <p className="text-sm text-muted-foreground">{ultimoResultado.details}</p>}
+                <p className="text-red-600"><strong>Erro:</strong> {ultimoResultado.error}</p>
+                {ultimoResultado.details && (
+                  <p className="text-sm text-muted-foreground">{ultimoResultado.details}</p>
+                )}
               </div>
             )}
-
+            
             {/* Informações de diagnóstico */}
             {ultimoResultado.diagnostico && (
               <details className="mt-4">
                 <summary className="cursor-pointer text-sm font-medium">Informações de Diagnóstico</summary>
                 <div className="mt-2 p-3 bg-muted rounded text-xs space-y-1">
-                  <p>
-                    <strong>Servidor:</strong> {ultimoResultado.diagnostico.servidor}
-                  </p>
-                  <p>
-                    <strong>Timestamp:</strong> {ultimoResultado.diagnostico.timestamp}
-                  </p>
+                  <p><strong>Servidor:</strong> {ultimoResultado.diagnostico.servidor}</p>
+                  <p><strong>Timestamp:</strong> {ultimoResultado.diagnostico.timestamp}</p>
                   {ultimoResultado.diagnostico.observacao && (
-                    <p>
-                      <strong>Observação:</strong> {ultimoResultado.diagnostico.observacao}
-                    </p>
+                    <p><strong>Observação:</strong> {ultimoResultado.diagnostico.observacao}</p>
                   )}
                   {ultimoResultado.diagnostico.url && (
-                    <p>
-                      <strong>URL SEFAZ:</strong> {ultimoResultado.diagnostico.url}
-                    </p>
+                    <p><strong>URL SEFAZ:</strong> {ultimoResultado.diagnostico.url}</p>
                   )}
                 </div>
               </details>
@@ -391,3 +412,4 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
     </div>
   );
 };
+

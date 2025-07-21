@@ -161,7 +161,7 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
     );
   }
 
-  return (
+ return (
     <Card>
       <CardHeader>
         <CardTitle>Certificados Digitais</CardTitle>
@@ -179,7 +179,9 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
               <div
                 key={certificado.id}
                 className={`border rounded-lg p-4 ${
-                  certificado.is_principal ? 'border-primary bg-primary/5' : 'border-border'
+                  certificado.is_principal 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-border'
                 }`}
               >
                 <div className="flex items-start justify-between">
@@ -187,12 +189,12 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
                     <div className="flex items-center gap-2 mb-2">
                       <h3 className="font-medium">{certificado.nome}</h3>
                       {certificado.is_principal && (
-                        <Badge variant="default" className="text-xs flex items-center gap-1">
-                          <ShieldCheck className="h-3 w-3" />
+                        <Badge variant="default" className="text-xs">
+                          <ShieldCheck className="h-3 w-3 mr-1" />
                           Principal
                         </Badge>
                       )}
-                      <Badge
+                      <Badge 
                         variant={certificado.ambiente === 'producao' ? 'destructive' : 'secondary'}
                         className="text-xs"
                       >
@@ -204,15 +206,10 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
                         </Badge>
                       )}
                     </div>
-
+                    
                     <div className="text-sm text-muted-foreground space-y-1">
-                      <p>
-                        <strong>CNPJ:</strong> {formatCnpj(certificado.cnpj)}
-                      </p>
-                      <p>
-                        <strong>Adicionado em:</strong>{' '}
-                        {new Date(certificado.created_at).toLocaleDateString('pt-BR')}
-                      </p>
+                      <p><strong>CNPJ:</strong> {formatCnpj(certificado.cnpj)}</p>
+                      <p><strong>Adicionado em:</strong> {new Date(certificado.created_at).toLocaleDateString('pt-BR')}</p>
                     </div>
                   </div>
 
@@ -222,20 +219,20 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
                         variant="outline"
                         size="sm"
                         onClick={() => marcarComoPrincipal(certificado.id)}
-                        className="text-xs flex items-center gap-1"
+                        className="text-xs"
                       >
-                        <Star className="h-3 w-3" />
+                        <Star className="h-3 w-3 mr-1" />
                         Marcar como Principal
                       </Button>
                     )}
-
+                    
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => excluirCertificado(certificado.id, certificado.nome)}
-                      className="text-destructive hover:text-destructive text-xs flex items-center gap-1"
+                      className="text-destructive hover:text-destructive text-xs"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3 w-3 mr-1" />
                       Excluir
                     </Button>
                   </div>
@@ -248,3 +245,4 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
     </Card>
   );
 };
+
