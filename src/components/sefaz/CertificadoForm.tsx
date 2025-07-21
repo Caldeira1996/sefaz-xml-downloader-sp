@@ -1,4 +1,4 @@
-'use client'; 
+'use client';
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -22,14 +22,10 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const buffer = Uint8Array.from(atob(certificadoBase64), c => c.charCodeAt(0));
-  const blob = new Blob([buffer], { type: 'application/x-pkcs12' });
-
   const validateCertificateFile = (file: File): boolean => {
-    // Verificar extensão
     const validExtensions = ['.p12', '.pfx'];
     const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-    
+
     if (!validExtensions.includes(fileExtension)) {
       toast({
         title: "Arquivo inválido",
@@ -39,7 +35,6 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
       return false;
     }
 
-    // Verificar tamanho (máximo 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast({
         title: "Arquivo muito grande",
@@ -57,7 +52,8 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
     if (file && validateCertificateFile(file)) {
       setCertificadoFile(file);
     } else {
-      e.target.value = ''; // Limpar input
+      e.target.value = '';
+      setCertificadoFile(null);
     }
   };
 
@@ -65,11 +61,11 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
     e.preventDefault();
     if (!user || !certificadoFile) return;
 
-    // Validações de entrada
     const sanitizedNome = sanitizeInput(nome);
     const sanitizedCnpj = cnpj.replace(/\D/g, '');
     const sanitizedSenha = senha.trim();
 
+    // Validações
     if (!sanitizedNome || sanitizedNome.length < 3) {
       toast({
         title: "Nome inválido",
@@ -100,24 +96,22 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
     setLoading(true);
 
     try {
-      // Criptografar senha antes de armazenar
       const encryptedPassword = await encryptPassword(sanitizedSenha);
 
-      // Converter certificado para base64
+      // Ler arquivo e converter para base64
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve, reject) => {
         reader.onload = () => {
           const result = reader.result as string;
-          const base64 = result.split(',')[1]; // Remove data:*/*;base64, prefix
+          const base64 = result.split(',')[1];
           resolve(base64);
         };
         reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
       });
-      
       reader.readAsDataURL(certificadoFile);
       const certificadoBase64 = await base64Promise;
 
-      // Salvar certificado no banco com senha criptografada
+      // Inserir no banco Supabase
       const { error } = await supabase
         .from('certificados')
         .insert({
@@ -125,12 +119,12 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
           nome: sanitizedNome,
           cnpj: sanitizedCnpj,
           certificado_base64: certificadoBase64,
-          senha_certificado: encryptedPassword, // Senha criptografada
-          ambiente
+          senha_certificado: encryptedPassword,
+          ambiente,
         });
 
       if (error) {
-        if (error.code === '23505') { // Unique constraint violation
+        if (error.code === '23505') {
           toast({
             title: "Certificado já existe",
             description: "Já existe um certificado para este CNPJ.",
@@ -139,25 +133,40 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
         } else {
           throw error;
         }
-      } else {
-        toast({
-          title: "Certificado salvo com sucesso!",
-          description: `Certificado ${sanitizedNome} foi adicionado com segurança.`,
-        });
-
-        // Limpar formulário
-        setNome('');
-        setCnpj('');
-        setCertificadoFile(null);
-        setSenha('');
-        setAmbiente('homologacao');
-        
-        // Reset file input
-        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-        if (fileInput) fileInput.value = '';
-        
-        onSuccess();
+        return;
       }
+
+      // Cria blob para envio ao backend
+      const buffer = Uint8Array.from(atob(certificadoBase64), c => c.charCodeAt(0));
+      const blob = new Blob([buffer], { type: 'application/x-pkcs12' });
+
+      toast({
+        title: "Certificado salvo com sucesso!",
+        description: `Certificado ${sanitizedNome} foi adicionado com segurança.`,
+      });
+
+      // Reset form
+      setNome('');
+      setCnpj('');
+      setCertificadoFile(null);
+      setSenha('');
+      setAmbiente('homologacao');
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+
+      onSuccess();
+
+      // Enviar para backend
+      const backendFormData = new FormData();
+      backendFormData.append('file', blob, `${sanitizedCnpj}.pfx`);
+      backendFormData.append('senha', sanitizedSenha);
+      backendFormData.append('nome', sanitizedNome);
+
+      await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/upload-cert`, {
+        method: 'POST',
+        body: backendFormData,
+      });
+
     } catch (error: any) {
       console.error('Erro ao salvar certificado:', error);
       toast({
@@ -168,17 +177,6 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
     } finally {
       setLoading(false);
     }
-
-    // envia para o backend
-      const backendFormData = new FormData();
-      backendFormData.append('file', blob, `${sanitizedCnpj}.pfx`);
-      backendFormData.append('senha', sanitizedSenha);
-      backendFormData.append('nome', sanitizedNome);
-
-      await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/upload-cert`, {
-        method: 'POST',
-        body: backendFormData,
-      });
   };
 
   const handleCnpjChange = (value: string) => {
