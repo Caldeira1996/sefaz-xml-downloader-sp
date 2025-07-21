@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 export interface User {
   id: string;
   email: string;
-  access_token?: string; // pode remover se usar token separado
+  access_token?: string; // opcional, dependendo da sua implementação
 }
 
 interface AuthContextType {
@@ -34,6 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const storedUser = localStorage.getItem(USER_STORAGE_KEY);
     const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+
     if (storedUser && storedToken) {
       setUser(JSON.parse(storedUser));
       setToken(storedToken);
