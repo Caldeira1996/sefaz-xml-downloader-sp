@@ -31,7 +31,7 @@ async function validarCertificado({ certificadoPath, senhaCertificado }) {
       </soap:Envelope>
     `;
 
-    const url = 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx';
+    const url = 'https://nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx';
 
     const response = await axios.post(url, xmlEnvelope, {
       httpsAgent,
