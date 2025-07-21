@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { validateToken } = require('./auth'); // ou '../services/auth' dependendo da posição
+const { validateToken } = require('../services/auth'); // ou '../services/auth' dependendo da posição
 
 router.post('/upload', validateToken, async (req, res) => {
   try {

@@ -4,7 +4,7 @@ const cors = require('cors');
 
 // Importa as rotas (que você deve ter separado em arquivos na pasta routes)
 const sefazConsultaRoutes = require('./routes/sefaz-consulta');
-const certificadosRoutes = require('./services/certificados'); // Caso crie essa rota para upload
+const certificadosRoutes = require('./routes/certificados'); // Caso crie essa rota para upload
 
 const app = express();
 
