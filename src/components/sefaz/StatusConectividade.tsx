@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { CheckCircle, XCircle, Loader2, RefreshCw, Wifi, WifiOff, Server, AlertTriangle } from 'lucide-react';
-import { makeBackendRequest, getBackendUrl } from '@/utils/backendProxy';
 
 interface StatusConectividade {
   conectado: boolean;
@@ -25,11 +23,14 @@ export const StatusConectividade = () => {
   const { toast } = useToast();
   const { user, session } = useAuth();
 
+  // Ajuste a URL base do seu backend aqui ou use variável ambiente
+  const backendBaseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br';
+
   const verificarServidorBackend = async () => {
     try {
       console.log('🔍 Verificando servidor backend...');
-      const response = await makeBackendRequest('/health');
-      
+      const response = await fetch(`${backendBaseUrl}/health`);
+
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Servidor backend online:', data);
@@ -40,25 +41,26 @@ export const StatusConectividade = () => {
         setServidorOnline(false);
         return { success: false, error: `HTTP ${response.status}`, url: response.url };
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Servidor backend offline:', error);
       setServidorOnline(false);
-      
-      // Identificar o tipo de erro
+
+      // Classificar o tipo do erro para diagnóstico
       let errorType = 'CONNECTION_ERROR';
-      if (error.message.includes('net::ERR_CERT') || error.message.includes('SSL')) {
+      const msg = error.message || '';
+      if (msg.includes('net::ERR_CERT') || msg.includes('SSL')) {
         errorType = 'SSL_ERROR';
-      } else if (error.message.includes('Mixed Content')) {
+      } else if (msg.includes('Mixed Content')) {
         errorType = 'MIXED_CONTENT';
-      } else if (error.message.includes('CORS')) {
+      } else if (msg.includes('CORS')) {
         errorType = 'CORS_ERROR';
-      } else if (error.message.includes('Failed to fetch')) {
+      } else if (msg.includes('Failed to fetch')) {
         errorType = 'NETWORK_ERROR';
-      } else if (error.message.includes('ERR_CONNECTION_TIMED_OUT')) {
+      } else if (msg.includes('ERR_CONNECTION_TIMED_OUT')) {
         errorType = 'TIMEOUT_ERROR';
       }
-      
-      return { success: false, error: error.message, type: errorType };
+
+      return { success: false, error: msg, type: errorType };
     }
   };
 
@@ -66,34 +68,35 @@ export const StatusConectividade = () => {
     if (!user || !session) return;
 
     setVerificando(true);
-    
+
     try {
       console.log('🔍 Verificando conectividade com SEFAZ via backend...');
-      
-      // Primeiro verificar se o servidor backend está online
+
+      // Verificar backend online
       const backendResult = await verificarServidorBackend();
-      
+
       if (!backendResult.success) {
-        const backendUrl = getBackendUrl();
-        const isHttps = backendUrl.startsWith('https');
-        const isLovable = window.location.hostname.endsWith('.lovableproject.com') || window.location.hostname.endsWith('.lovable.app');
-        
         let detalhes = `Servidor backend offline.`;
-        
-        if (backendResult.type === 'TIMEOUT_ERROR') {
-          detalhes = `⏱️ Timeout ao conectar: O servidor não responde na porta esperada. Verifique firewall e Security Groups da AWS.`;
-        } else if (backendResult.type === 'SSL_ERROR') {
-          detalhes = `⚠️ Erro SSL/TLS: Certificado inválido ou auto-assinado.`;
-        } else if (backendResult.type === 'MIXED_CONTENT') {
-          detalhes = `Mixed Content Error: Frontend HTTPS não pode acessar servidor HTTP.`;
-        } else if (backendResult.type === 'CORS_ERROR') {
-          detalhes = `CORS Error: Servidor não permite requisições cross-origin.`;
-        } else if (backendResult.type === 'NETWORK_ERROR') {
-          detalhes = `Network Error: Não foi possível conectar ao servidor.`;
-        } else {
-          detalhes = `Erro de conexão: ${backendResult.error}`;
+        switch (backendResult.type) {
+          case 'TIMEOUT_ERROR':
+            detalhes = `⏱️ Timeout ao conectar: verifique firewall e Security Groups da AWS.`;
+            break;
+          case 'SSL_ERROR':
+            detalhes = `⚠️ Erro SSL/TLS: Certificado inválido ou auto-assinado.`;
+            break;
+          case 'MIXED_CONTENT':
+            detalhes = `Erro Mixed Content: Frontend HTTPS não pode acessar servidor HTTP.`;
+            break;
+          case 'CORS_ERROR':
+            detalhes = `Erro CORS: Servidor não permite requisições cross-origin.`;
+            break;
+          case 'NETWORK_ERROR':
+            detalhes = `Erro de rede: não foi possível conectar ao servidor.`;
+            break;
+          default:
+            detalhes = `Erro: ${backendResult.error}`;
         }
-        
+
         setStatus({
           conectado: false,
           ambiente: 'N/A',
@@ -101,7 +104,7 @@ export const StatusConectividade = () => {
           detalhes,
           servidor: 'Offline',
           errorType: backendResult.type,
-          urlUsada: backendUrl
+          urlUsada: backendBaseUrl,
         });
 
         toast({
@@ -109,44 +112,41 @@ export const StatusConectividade = () => {
           description: detalhes,
           variant: "destructive",
         });
+
         return;
       }
 
-      // Se chegou aqui, o backend está online, agora testar SEFAZ
-      const response = await makeBackendRequest('/api/sefaz/status', {
+      // Backend está online, verificar SEFAZ
+      const response = await fetch(`${backendBaseUrl}/api/sefaz/status`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+          Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({
-          ambiente: 'producao'
-        })
+        body: JSON.stringify({ ambiente: 'producao' }),
       });
-
-      console.log('📡 Resposta da verificação SEFAZ:', response);
 
       if (!response.ok) {
         throw new Error(`Erro HTTP: ${response.status}`);
       }
 
       const data = await response.json();
-      
+
       setStatus({
         conectado: data.success,
         ambiente: 'Produção',
         ultimaVerificacao: new Date().toLocaleString('pt-BR'),
-        detalhes: data.success 
-          ? `✅ Conectado via ${backendResult.url || 'backend'} (${data.conectividade?.statusCode})` 
-          : data.error,
+        detalhes: data.success
+          ? `✅ Conectado via ${backendResult.url || 'backend'} (${data.conectividade?.statusCode || 'sem código'})`
+          : data.error || 'Erro desconhecido',
         servidor: 'Online',
-        urlUsada: backendResult.url
+        urlUsada: backendResult.url || backendBaseUrl,
       });
 
       if (data.success) {
         toast({
           title: "✅ Conectividade OK",
-          description: `Backend conectado com SEFAZ SP via ${backendResult.url}`,
+          description: `Backend conectado com SEFAZ SP via ${backendResult.url || backendBaseUrl}`,
         });
       } else {
         toast({
@@ -155,16 +155,14 @@ export const StatusConectividade = () => {
           variant: "destructive",
         });
       }
-
     } catch (error: any) {
       console.error('❌ Erro na verificação:', error);
-      
       setStatus({
         conectado: false,
         ambiente: 'Produção',
         ultimaVerificacao: new Date().toLocaleString('pt-BR'),
         detalhes: error.message,
-        servidor: servidorOnline ? 'Online' : 'Offline'
+        servidor: servidorOnline ? 'Online' : 'Offline',
       });
 
       toast({
@@ -177,7 +175,7 @@ export const StatusConectividade = () => {
     }
   };
 
-  // Verificar automaticamente ao carregar
+  // Verificar ao montar o componente e quando usuário/session mudar
   useEffect(() => {
     if (user && session) {
       verificarConectividade();
@@ -186,9 +184,10 @@ export const StatusConectividade = () => {
 
   if (!user) return null;
 
-  const backendUrl = getBackendUrl();
+  const backendUrl = backendBaseUrl;
   const isHttps = backendUrl.startsWith('https');
-  const isLovable = window.location.hostname.endsWith('.lovableproject.com') || window.location.hostname.endsWith('.lovable.app');
+  const hostname = window.location.hostname;
+  const isLovable = hostname.endsWith('.lovableproject.com') || hostname.endsWith('.lovable.app');
 
   return (
     <Card className="mb-4">
@@ -216,10 +215,10 @@ export const StatusConectividade = () => {
             ) : (
               <XCircle className="h-5 w-5 text-red-500" />
             )}
-            
+
             <div>
               <div className="flex items-center gap-2">
-                <Badge 
+                <Badge
                   variant={status?.conectado ? "default" : "destructive"}
                   className="text-xs"
                 >
@@ -230,20 +229,20 @@ export const StatusConectividade = () => {
                     {status.ambiente}
                   </span>
                 )}
-                <Badge 
+                <Badge
                   variant={servidorOnline ? "default" : "destructive"}
                   className="text-xs"
                 >
                   Backend: {servidorOnline ? 'Online' : 'Offline'}
                 </Badge>
               </div>
-              
+
               {status && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Última verificação: {status.ultimaVerificacao}
                 </p>
               )}
-              
+
               {status?.detalhes && (
                 <p className={`text-xs mt-1 ${status.conectado ? 'text-green-600' : 'text-red-600'}`}>
                   {status.detalhes}
@@ -270,16 +269,16 @@ export const StatusConectividade = () => {
           </Button>
         </div>
 
-        {/* Informações de diagnóstico */}
+        {/* Diagnóstico detalhado caso backend offline */}
         {!servidorOnline && status && (
           <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-xs text-red-700">
             <div className="font-semibold mb-2">🔍 Diagnóstico:</div>
-            
+
             <div className="space-y-1">
               <div><strong>🌐 Ambiente:</strong> {isLovable ? 'Lovable' : 'Produção/Local'}</div>
               <div><strong>📡 Protocolo:</strong> {isHttps ? 'HTTPS' : 'HTTP'}</div>
               <div><strong>🎯 URL Testada:</strong> {status.urlUsada || backendUrl}</div>
-              
+
               {status.errorType === 'TIMEOUT_ERROR' && (
                 <div className="mt-2 p-2 bg-orange-100 border border-orange-300 rounded">
                   <div><strong>⏱️ Erro de Timeout</strong></div>
@@ -289,7 +288,7 @@ export const StatusConectividade = () => {
                   <div>• Configure nginx para proxy reverso na porta 443</div>
                 </div>
               )}
-              
+
               {status.errorType === 'SSL_ERROR' && (
                 <div className="mt-2 p-2 bg-orange-100 border border-orange-300 rounded">
                   <div><strong>⚠️ Certificado SSL Inválido</strong></div>
@@ -297,7 +296,7 @@ export const StatusConectividade = () => {
                   <div>• Configure nginx com SSL adequado</div>
                 </div>
               )}
-              
+
               {status.errorType === 'NETWORK_ERROR' && (
                 <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded">
                   <div><strong>📡 Erro de Rede</strong></div>

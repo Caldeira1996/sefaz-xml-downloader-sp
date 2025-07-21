@@ -1,13 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { Trash2, Star, StarOff, Shield, ShieldCheck } from 'lucide-react';
+import { Trash2, Star, ShieldCheck } from 'lucide-react';
 import { formatCnpj } from '@/utils/cnpjValidation';
 
 interface Certificado {
@@ -33,15 +31,27 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
   }, [user, shouldRefresh]);
 
   const carregarCertificados = async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('certificados')
-        .select('id, nome, cnpj, ambiente, ativo, is_principal, created_at')
-        .order('is_principal', { ascending: false })
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setCertificados(data || []);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados`, {
+        headers: {
+          'Authorization': `Bearer ${user?.access_token || ''}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Erro ao carregar certificados');
+      }
+      const data: Certificado[] = await res.json();
+      // Ordenar conforme anterior: is_principal desc, created_at desc
+      data.sort((a, b) => {
+        if (a.is_principal === b.is_principal) {
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        }
+        return (a.is_principal ? -1 : 1);
+      });
+      setCertificados(data);
     } catch (error: any) {
       toast({
         title: "Erro ao carregar certificados",
@@ -55,18 +65,22 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
 
   const marcarComoPrincipal = async (certificadoId: string) => {
     try {
-      const { error } = await supabase
-        .from('certificados')
-        .update({ is_principal: true })
-        .eq('id', certificadoId);
-
-      if (error) throw error;
-
+      // Chamar PATCH para atualizar principal
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados/${certificadoId}/principal`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${user?.access_token || ''}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Erro ao atualizar certificado principal');
+      }
       toast({
         title: "Certificado principal atualizado",
         description: "O certificado foi marcado como principal com sucesso.",
       });
-
       carregarCertificados();
     } catch (error: any) {
       toast({
@@ -83,18 +97,21 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
     }
 
     try {
-      const { error } = await supabase
-        .from('certificados')
-        .delete()
-        .eq('id', certificadoId);
-
-      if (error) throw error;
-
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados/${certificadoId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${user?.access_token || ''}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Erro ao excluir certificado');
+      }
       toast({
         title: "Certificado excluído",
         description: `O certificado "${nomeCertificado}" foi excluído com sucesso.`,
       });
-
       carregarCertificados();
     } catch (error: any) {
       toast({
@@ -149,8 +166,8 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
                     <div className="flex items-center gap-2 mb-2">
                       <h3 className="font-medium">{certificado.nome}</h3>
                       {certificado.is_principal && (
-                        <Badge variant="default" className="text-xs">
-                          <ShieldCheck className="h-3 w-3 mr-1" />
+                        <Badge variant="default" className="text-xs flex items-center gap-1">
+                          <ShieldCheck className="h-3 w-3" />
                           Principal
                         </Badge>
                       )}
@@ -179,9 +196,9 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
                         variant="outline"
                         size="sm"
                         onClick={() => marcarComoPrincipal(certificado.id)}
-                        className="text-xs"
+                        className="text-xs flex items-center gap-1"
                       >
-                        <Star className="h-3 w-3 mr-1" />
+                        <Star className="h-3 w-3" />
                         Marcar como Principal
                       </Button>
                     )}
@@ -190,9 +207,9 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
                       variant="outline"
                       size="sm"
                       onClick={() => excluirCertificado(certificado.id, certificado.nome)}
-                      className="text-destructive hover:text-destructive text-xs"
+                      className="text-destructive hover:text-destructive text-xs flex items-center gap-1"
                     >
-                      <Trash2 className="h-3 w-3 mr-1" />
+                      <Trash2 className="h-3 w-3" />
                       Excluir
                     </Button>
                   </div>

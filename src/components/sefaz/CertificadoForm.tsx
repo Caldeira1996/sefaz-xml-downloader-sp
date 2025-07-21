@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { encryptPassword } from '@/utils/encryption';
@@ -65,7 +64,6 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
     const sanitizedCnpj = cnpj.replace(/\D/g, '');
     const sanitizedSenha = senha.trim();
 
-    // Validações
     if (!sanitizedNome || sanitizedNome.length < 3) {
       toast({
         title: "Nome inválido",
@@ -98,7 +96,6 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
     try {
       const encryptedPassword = await encryptPassword(sanitizedSenha);
 
-      // Ler arquivo e converter para base64
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve, reject) => {
         reader.onload = () => {
@@ -111,41 +108,44 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
       reader.readAsDataURL(certificadoFile);
       const certificadoBase64 = await base64Promise;
 
-      // Inserir no banco Supabase
-      const { error } = await supabase
-        .from('certificados')
-        .insert({
+      // CHAMADA AO SEU BACKEND 
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.access_token || ''}`, // Ajuste conforme seu token real
+        },
+        body: JSON.stringify({
           user_id: user.id,
           nome: sanitizedNome,
           cnpj: sanitizedCnpj,
           certificado_base64: certificadoBase64,
           senha_certificado: encryptedPassword,
           ambiente,
-        });
+        }),
+      });
 
-      if (error) {
-        if (error.code === '23505') {
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (errorData?.code === '23505') {
           toast({
             title: "Certificado já existe",
             description: "Já existe um certificado para este CNPJ.",
             variant: "destructive",
           });
         } else {
-          throw error;
+          throw new Error(errorData?.message || 'Erro desconhecido ao salvar certificado');
         }
+        setLoading(false);
         return;
       }
-
-      // Cria blob para envio ao backend
-      const buffer = Uint8Array.from(atob(certificadoBase64), c => c.charCodeAt(0));
-      const blob = new Blob([buffer], { type: 'application/x-pkcs12' });
 
       toast({
         title: "Certificado salvo com sucesso!",
         description: `Certificado ${sanitizedNome} foi adicionado com segurança.`,
       });
 
-      // Reset form
+      // Resetar formulário
       setNome('');
       setCnpj('');
       setCertificadoFile(null);
@@ -156,7 +156,11 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
 
       onSuccess();
 
-      // Enviar para backend
+      // Enviar arquivo binário para backend via FormData, se necessário
+      // (caso o endpoint /certificados já salve o base64, pode remover esta parte)
+      /*
+      const buffer = Uint8Array.from(atob(certificadoBase64), c => c.charCodeAt(0));
+      const blob = new Blob([buffer], { type: 'application/x-pkcs12' });
       const backendFormData = new FormData();
       backendFormData.append('file', blob, `${sanitizedCnpj}.pfx`);
       backendFormData.append('senha', sanitizedSenha);
@@ -166,6 +170,7 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
         method: 'POST',
         body: backendFormData,
       });
+      */
 
     } catch (error: any) {
       console.error('Erro ao salvar certificado:', error);

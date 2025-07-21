@@ -63,7 +63,7 @@ Upload de certificados digitais (a implementar).
 
 ## Observações
 
-- O servidor valida tokens do Supabase para autenticação
+
 - Certificados são carregados do sistema de arquivos local
 - Comunicação SOAP com a SEFAZ usando biblioteca especializada
 - Compatível com certificados A1 (PFX/P12)
