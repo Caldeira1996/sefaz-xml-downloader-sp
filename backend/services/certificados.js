@@ -1,18 +1,18 @@
-const express = require('express');
-const router = express.Router();
-const { validateToken } = require('../services/auth');
+// services/certificados.js
+const supabaseClient = require('./supabase'); // ajuste conforme seu caminho real
 
-router.post('/upload', validateToken, async (req, res) => {
-  try {
-    // TODO: implementação upload
-    res.json({
-      success: true,
-      message: 'Endpoint de upload preparado. Upload será implementado.',
-    });
-  } catch (error) {
-    console.error('Erro no upload:', error);
-    res.status(500).json({ success: false, error: error.message });
+async function buscarCertificado(certificadoId, user) {
+  const { data: certificado, error: certError } = await supabaseClient
+    .from('certificados')
+    .select('*')
+    .eq('id', certificadoId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (certError || !certificado) {
+    throw new Error('Certificado não encontrado ou não autorizado');
   }
-});
+  return certificado;
+}
 
-module.exports = router;
+module.exports = { buscarCertificado };

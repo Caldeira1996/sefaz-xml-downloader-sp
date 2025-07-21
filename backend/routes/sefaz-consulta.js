@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+
 const { buscarCertificado } = require('../services/certificados');
 const { consultarNFe } = require('../services/sefaz');
 const { validateToken } = require('../services/auth');
