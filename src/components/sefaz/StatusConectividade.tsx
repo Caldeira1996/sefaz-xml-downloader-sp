@@ -6,6 +6,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { CheckCircle, XCircle, Loader2, RefreshCw, Wifi, WifiOff, Server, AlertTriangle } from 'lucide-react';
 
+const { user, token, session } = useAuth();
+
 interface StatusConectividade {
   conectado: boolean;
   ambiente: string;
@@ -121,7 +123,7 @@ export const StatusConectividade = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${token || ''}`,
         },
         body: JSON.stringify({ ambiente: 'producao' }),
       });
