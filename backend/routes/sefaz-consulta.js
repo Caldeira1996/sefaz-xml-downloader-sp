@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { buscarCertificadoPorId } = require('./certificados');
-const { consultarNFe } = require('../services/sefaz');
+const { buscarCertificadoPorId } = require('../services/certificados');
+const { consultarNFe } = require('../services/certificados');
 
 // Middleware simples de validação de token (pode importar do seu service)
 const { validateToken } = require('../services/auth'); // se já tiver
@@ -44,7 +44,7 @@ router.post('/consulta', async (req, res) => {
     }
     console.log('User ID:', userId);
     
-    const certificado = await buscarCertificadoPorId(certificadoId, userId);
+    const certificado = await buscarCertificado(certificadoId, userId);
     console.log('Certificado:', certificado);
     
     if (!certificado) {
@@ -68,3 +68,16 @@ router.post('/consulta', async (req, res) => {
     res.status(500).json({ error: 'Erro interno ao consultar a SEFAZ' });
   }
 });
+
+router.post('/status', async (req, res) => {
+  // Exemplo simples do endpoint /status
+  const ambiente = req.body.ambiente || 'homologacao';
+  res.json({
+    success: true,
+    ambiente,
+    message: 'Status SEFAZ OK (simulação)',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+module.exports = router;
