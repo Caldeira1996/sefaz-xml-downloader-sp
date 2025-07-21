@@ -28,31 +28,29 @@ router.post('/status', validateToken, async (req, res) => {
 });
 
 // POST /api/sefaz/consulta (seu código já existente)
-router.post('/consulta', validateToken, async (req, res) => {
+router.post('/consulta', async (req, res) => {
   try {
-    const {
-      certificadoId,
-      cnpjConsultado,
-      tipoConsulta,
-      ambiente,
-      dataInicio,
-      dataFim,
-    } = req.body;
-
+    console.log('Recebido corpo:', req.body);
+    const { certificadoId, cnpjConsultado, tipoConsulta, ambiente, dataInicio, dataFim } = req.body;
+    
+    // Validar obrigatórios
     if (!certificadoId || !cnpjConsultado || !tipoConsulta || !ambiente) {
       return res.status(400).json({ error: 'Parâmetros obrigatórios faltando' });
     }
-
+    
     const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: 'Usuário não autenticado' });
     }
-
+    console.log('User ID:', userId);
+    
     const certificado = await buscarCertificadoPorId(certificadoId, userId);
+    console.log('Certificado:', certificado);
+    
     if (!certificado) {
       return res.status(403).json({ error: 'Certificado não encontrado ou não autorizado' });
     }
-
+    
     const resultado = await consultarNFe({
       certificado,
       cnpjConsultado,
@@ -61,12 +59,12 @@ router.post('/consulta', validateToken, async (req, res) => {
       dataInicio,
       dataFim,
     });
-
+    
+    console.log('Resultado da consulta:', resultado);
     res.json(resultado);
   } catch (err) {
     console.error('[Erro /api/sefaz/consulta]:', err);
+    console.error(err.stack);
     res.status(500).json({ error: 'Erro interno ao consultar a SEFAZ' });
   }
 });
-
-module.exports = router;
