@@ -12,7 +12,7 @@ interface Certificado {
   id: string;
   nome: string;
   cnpj: string;
-  ambiente: string;
+  ambiente: 'producao' | 'homologacao';
   ativo: boolean;
   is_principal: boolean;
   created_at: string;
@@ -27,97 +27,120 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
   useEffect(() => {
     if (user) {
       carregarCertificados();
+    } else {
+      setCertificados([]);
+      setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, shouldRefresh]);
 
   const carregarCertificados = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados`, {
-        headers: {
-          'Authorization': `Bearer ${user?.access_token || ''}`,
-          'Content-Type': 'application/json',
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados`,
+        {
+          headers: {
+            Authorization: `Bearer ${user?.access_token || ''}`,
+            'Content-Type': 'application/json',
+          },
         }
-      });
+      );
+
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.message || 'Erro ao carregar certificados');
       }
+
       const data: Certificado[] = await res.json();
-      // Ordenar conforme anterior: is_principal desc, created_at desc
+
+      // Ordena por is_principal (desc) e created_at (desc)
       data.sort((a, b) => {
         if (a.is_principal === b.is_principal) {
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         }
-        return (a.is_principal ? -1 : 1);
+        return a.is_principal ? -1 : 1;
       });
+
       setCertificados(data);
     } catch (error: any) {
       toast({
-        title: "Erro ao carregar certificados",
+        title: 'Erro ao carregar certificados',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
+      setCertificados([]);
     } finally {
       setLoading(false);
     }
   };
 
   const marcarComoPrincipal = async (certificadoId: string) => {
+    if (!user) return;
     try {
-      // Chamar PATCH para atualizar principal
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados/${certificadoId}/principal`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${user?.access_token || ''}`,
-          'Content-Type': 'application/json',
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados/${certificadoId}/principal`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${user.access_token}`,
+            'Content-Type': 'application/json',
+          },
         }
-      });
+      );
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.message || 'Erro ao atualizar certificado principal');
       }
       toast({
-        title: "Certificado principal atualizado",
-        description: "O certificado foi marcado como principal com sucesso.",
+        title: 'Certificado principal atualizado',
+        description: 'O certificado foi marcado como principal com sucesso.',
       });
       carregarCertificados();
     } catch (error: any) {
       toast({
-        title: "Erro ao marcar certificado como principal",
+        title: 'Erro ao marcar certificado como principal',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   };
 
   const excluirCertificado = async (certificadoId: string, nomeCertificado: string) => {
+    if (!user) return;
+
     if (!confirm(`Tem certeza que deseja excluir o certificado "${nomeCertificado}"?`)) {
       return;
     }
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados/${certificadoId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${user?.access_token || ''}`,
-          'Content-Type': 'application/json',
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados/${certificadoId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${user.access_token}`,
+            'Content-Type': 'application/json',
+          },
         }
-      });
+      );
+
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.message || 'Erro ao excluir certificado');
       }
+
       toast({
-        title: "Certificado excluído",
+        title: 'Certificado excluído',
         description: `O certificado "${nomeCertificado}" foi excluído com sucesso.`,
       });
+
       carregarCertificados();
     } catch (error: any) {
       toast({
-        title: "Erro ao excluir certificado",
+        title: 'Erro ao excluir certificado',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   };
@@ -156,9 +179,7 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
               <div
                 key={certificado.id}
                 className={`border rounded-lg p-4 ${
-                  certificado.is_principal 
-                    ? 'border-primary bg-primary/5' 
-                    : 'border-border'
+                  certificado.is_principal ? 'border-primary bg-primary/5' : 'border-border'
                 }`}
               >
                 <div className="flex items-start justify-between">
@@ -171,7 +192,7 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
                           Principal
                         </Badge>
                       )}
-                      <Badge 
+                      <Badge
                         variant={certificado.ambiente === 'producao' ? 'destructive' : 'secondary'}
                         className="text-xs"
                       >
@@ -183,10 +204,15 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
                         </Badge>
                       )}
                     </div>
-                    
+
                     <div className="text-sm text-muted-foreground space-y-1">
-                      <p><strong>CNPJ:</strong> {formatCnpj(certificado.cnpj)}</p>
-                      <p><strong>Adicionado em:</strong> {new Date(certificado.created_at).toLocaleDateString('pt-BR')}</p>
+                      <p>
+                        <strong>CNPJ:</strong> {formatCnpj(certificado.cnpj)}
+                      </p>
+                      <p>
+                        <strong>Adicionado em:</strong>{' '}
+                        {new Date(certificado.created_at).toLocaleDateString('pt-BR')}
+                      </p>
                     </div>
                   </div>
 
@@ -202,7 +228,7 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
                         Marcar como Principal
                       </Button>
                     )}
-                    
+
                     <Button
                       variant="outline"
                       size="sm"

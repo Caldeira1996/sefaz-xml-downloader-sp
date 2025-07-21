@@ -1,13 +1,15 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-interface User {
+export interface User {
   id: string;
   email: string;
+  access_token?: string; // pode remover se usar token separado
 }
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
+  session: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<boolean>;
   signOut: () => void;
@@ -42,7 +44,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string): Promise<boolean> => {
     setLoading(true);
     try {
-      // Ajuste a URL e payload conforme seu backend real
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -55,7 +56,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const data = await response.json();
-      // Suponha que o backend retorne { token, user: { id, email } }
       const { token, user } = data;
 
       if (!token || !user) {
@@ -85,8 +85,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(null);
   };
 
+  const session = !!user;
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, token, session, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
