@@ -50,8 +50,8 @@ router.post('/consulta', async (req, res) => {
     console.log(certificado);
     
     const resultado = await consultarNFe({
-      certificadoPath: certificado.caminho_arquivo, // ou certificado.path, depende do seu objeto
-      senhaCertificado: certificado.senha_certificado, // ou o nome correto da propriedade
+      certificadoBuffer: certificado.buffer,    // <- buffer do arquivo .pfx
+      senhaCertificado: certificado.senha,      // <- senha do certificado do banco
       cnpjConsultado,
       tipoConsulta,
       ambiente,

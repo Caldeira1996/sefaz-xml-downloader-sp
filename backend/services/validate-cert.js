@@ -1,39 +1,38 @@
-const path = require('path');
+// services/validate-cert.js
 const fs = require('fs');
+const https = require('https');
+const axios = require('axios');
 
 async function validarCertificado({ certificadoPath, senhaCertificado }) {
   try {
-    // Log do certificadoPath recebido
-    console.log('Recebido certificadoPath:', certificadoPath);
-
-    // Confirma se arquivo existe no local esperado
-    const fullPath = path.isAbsolute(certificadoPath)
-      ? certificadoPath
-      : path.join(__dirname, 'certificates', `${certificadoPath}.pfx`);
-
-    console.log('Caminho completo do certificado:', fullPath);
-
-    if (!fs.existsSync(fullPath)) {
-      console.error('Certificado não encontrado no caminho informado');
-      return { valido: false, erro: 'Certificado não encontrado' };
+    if (!fs.existsSync(certificadoPath)) {
+      return { valido: false, erro: 'Certificado não encontrado no caminho informado' };
     }
 
-    // Só pra garantir que a senha veio (não logar senha em texto! só confirmação)
-    if (!senhaCertificado || senhaCertificado.length === 0) {
-      console.error('Senha do certificado não informada');
-      return { valido: false, erro: 'Senha do certificado não informada' };
-    }
+    const pfxBuffer = fs.readFileSync(certificadoPath);
 
-    // Cria agente HTTPS a partir do certificado e senha
-    const httpsAgent = createAgentFromPfx(certificadoPath, senhaCertificado);
+    const httpsAgent = new https.Agent({
+      pfx: pfxBuffer,
+      passphrase: senhaCertificado,
+      rejectUnauthorized: false,
+    });
 
-    // URL de homologação para teste
+    const xmlEnvelope = `
+      <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
+        <soap:Header/>
+        <soap:Body>
+          <nfe:nfeStatusServicoNF>
+            <nfe:versao>4.00</nfe:versao>
+            <nfe:tpAmb>2</nfe:tpAmb>
+            <nfe:cUF>35</nfe:cUF>
+            <nfe:xServ>STATUS</nfe:xServ>
+          </nfe:nfeStatusServicoNF>
+        </soap:Body>
+      </soap:Envelope>
+    `;
+
     const url = 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx';
 
-    // Corpo XML para consulta de status (simples)
-    const xmlEnvelope = createStatusEnvelope();
-
-    // Tenta fazer a requisição
     const response = await axios.post(url, xmlEnvelope, {
       httpsAgent,
       headers: {
@@ -43,11 +42,14 @@ async function validarCertificado({ certificadoPath, senhaCertificado }) {
       timeout: 10000,
     });
 
-    console.log('Requisição realizada com sucesso, resposta:', response.status);
-
-    return { valido: true, resposta: response.data };
+    if (response.status === 200) {
+      return { valido: true, resposta: response.data };
+    } else {
+      return { valido: false, erro: `Resposta inesperada da SEFAZ: ${response.status}` };
+    }
   } catch (err) {
-    console.error('Erro na validação do certificado:', err.message);
-    return { valido: false, erro: err.message || err.toString() };
+    return { valido: false, erro: err.message || 'Erro desconhecido' };
   }
 }
+
+module.exports = { validarCertificado };
