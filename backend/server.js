@@ -8,7 +8,7 @@ const xml2js = require('xml2js');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-DeviceMotionEvent.config()
+//DeviceMotionEvent.config()
 
 const certPath = '/home/ubuntu/sefaz-xml-downloader-sp/backend/certs/';
 
