@@ -4,6 +4,7 @@ const router = express.Router();
 const { buscarCertificado } = require('../services/certificados');
 const { consultarNFe } = require('../services/sefaz');
 const { validateToken } = require('../services/auth');
+const jwt = require('jsonwebtoken');
 
 router.use(validateToken); // protege todas as rotas abaixo
 
