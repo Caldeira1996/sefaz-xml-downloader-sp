@@ -3,8 +3,32 @@ const router = express.Router();
 const { buscarCertificadoPorId } = require('./certificados');
 const { consultarNFe } = require('../services/sefaz');
 
-// POST /api/sefaz/consulta
-router.post('/consulta', async (req, res) => {
+// Middleware simples de validação de token (pode importar do seu service)
+const { validateToken } = require('../middlewares/auth'); // se já tiver
+// Se não tiver, implemente aqui:
+
+// POST /api/sefaz/status
+router.post('/status', validateToken, async (req, res) => {
+  try {
+    // Aqui a lógica para checar status da SEFAZ
+    // Exemplo simplificado:
+
+    const ambiente = req.body.ambiente || 'homologacao';
+
+    res.json({
+      success: true,
+      ambiente,
+      message: 'Status SEFAZ OK (simulação)',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Erro no /status:', error);
+    res.status(500).json({ error: 'Erro ao consultar status SEFAZ' });
+  }
+});
+
+// POST /api/sefaz/consulta (seu código já existente)
+router.post('/consulta', validateToken, async (req, res) => {
   try {
     const {
       certificadoId,
@@ -19,7 +43,7 @@ router.post('/consulta', async (req, res) => {
       return res.status(400).json({ error: 'Parâmetros obrigatórios faltando' });
     }
 
-    const userId = req.user?.id; // certifique-se que seu middleware de auth popula req.user
+    const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: 'Usuário não autenticado' });
     }
