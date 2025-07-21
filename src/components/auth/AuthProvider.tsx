@@ -1,80 +1,60 @@
-
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  token: string | null;
+  userEmail: string | null;
   loading: boolean;
-  signOut: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<boolean>;
+  signOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Simula carregamento inicial buscando token no localStorage
   useEffect(() => {
-    // Configurar listener de mudanças de autenticação ANTES de verificar sessão
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.id);
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
-    // Verificar sessão atual
-    const getSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error('Erro ao obter sessão:', error);
-        }
-        setSession(session);
-        setUser(session?.user ?? null);
-      } catch (error) {
-        console.error('Erro na verificação de sessão:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getSession();
-
-    return () => subscription.unsubscribe();
+    const storedToken = localStorage.getItem('token');
+    const storedEmail = localStorage.getItem('userEmail');
+    if (storedToken) {
+      setToken(storedToken);
+      setUserEmail(storedEmail);
+    }
+    setLoading(false);
   }, []);
 
-  const signOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-    } catch (error) {
-      console.error('Erro no logout:', error);
+  // Função fake de login, só aceita email/senha fixos, por exemplo
+  const signIn = async (email: string, password: string): Promise<boolean> => {
+    // Aqui você pode validar contra um backend, mas vamos simular sucesso se senha == "123456"
+    if (password === '123456') {
+      const fakeToken = 'mock-token-123456';
+      setToken(fakeToken);
+      setUserEmail(email);
+      localStorage.setItem('token', fakeToken);
+      localStorage.setItem('userEmail', email);
+      return true;
     }
+    return false;
   };
 
-  const value = {
-    user,
-    session,
-    loading,
-    signOut,
+  const signOut = () => {
+    setToken(null);
+    setUserEmail(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('userEmail');
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ token, userEmail, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
