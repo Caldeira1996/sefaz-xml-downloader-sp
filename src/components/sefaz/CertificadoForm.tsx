@@ -19,12 +19,11 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const [ambiente, setAmbiente] = useState<'producao' | 'homologacao'>('homologacao');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   const validateCertificateFile = (file: File): boolean => {
     const validExtensions = ['.p12', '.pfx'];
     const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-
     if (!validExtensions.includes(fileExtension)) {
       toast({
         title: "Arquivo inválido",
@@ -33,7 +32,6 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
       });
       return false;
     }
-
     if (file.size > 5 * 1024 * 1024) {
       toast({
         title: "Arquivo muito grande",
@@ -42,7 +40,6 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
       });
       return false;
     }
-
     return true;
   };
 
@@ -58,7 +55,24 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !certificadoFile) return;
+
+    if (!user || !token) {
+      toast({
+        title: "Usuário não autenticado",
+        description: "Por favor, faça login para continuar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!certificadoFile) {
+      toast({
+        title: "Arquivo do certificado necessário",
+        description: "Por favor, selecione o arquivo do certificado.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const sanitizedNome = sanitizeInput(nome);
     const sanitizedCnpj = cnpj.replace(/\D/g, '');
@@ -108,12 +122,11 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
       reader.readAsDataURL(certificadoFile);
       const certificadoBase64 = await base64Promise;
 
-      // CHAMADA AO SEU BACKEND 
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.access_token || ''}`, // Ajuste conforme seu token real
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           user_id: user.id,
@@ -155,22 +168,6 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
       if (fileInput) fileInput.value = '';
 
       onSuccess();
-
-      // Enviar arquivo binário para backend via FormData, se necessário
-      // (caso o endpoint /certificados já salve o base64, pode remover esta parte)
-      /*
-      const buffer = Uint8Array.from(atob(certificadoBase64), c => c.charCodeAt(0));
-      const blob = new Blob([buffer], { type: 'application/x-pkcs12' });
-      const backendFormData = new FormData();
-      backendFormData.append('file', blob, `${sanitizedCnpj}.pfx`);
-      backendFormData.append('senha', sanitizedSenha);
-      backendFormData.append('nome', sanitizedNome);
-
-      await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/upload-cert`, {
-        method: 'POST',
-        body: backendFormData,
-      });
-      */
 
     } catch (error: any) {
       console.error('Erro ao salvar certificado:', error);

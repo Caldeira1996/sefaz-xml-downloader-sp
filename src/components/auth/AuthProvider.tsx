@@ -1,8 +1,13 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+
+interface User {
+  id: string;
+  email: string;
+}
 
 interface AuthContextType {
+  user: User | null;
   token: string | null;
-  userEmail: string | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<boolean>;
   signOut: () => void;
@@ -16,45 +21,72 @@ export const useAuth = () => {
   return context;
 };
 
+const USER_STORAGE_KEY = 'appUser';
+const TOKEN_STORAGE_KEY = 'appToken';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Simula carregamento inicial buscando token no localStorage
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedEmail = localStorage.getItem('userEmail');
-    if (storedToken) {
+    const storedUser = localStorage.getItem(USER_STORAGE_KEY);
+    const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (storedUser && storedToken) {
+      setUser(JSON.parse(storedUser));
       setToken(storedToken);
-      setUserEmail(storedEmail);
     }
     setLoading(false);
   }, []);
 
-  // Função fake de login, só aceita email/senha fixos, por exemplo
   const signIn = async (email: string, password: string): Promise<boolean> => {
-    // Aqui você pode validar contra um backend, mas vamos simular sucesso se senha == "123456"
-    if (password === '123456') {
-      const fakeToken = 'mock-token-123456';
-      setToken(fakeToken);
-      setUserEmail(email);
-      localStorage.setItem('token', fakeToken);
-      localStorage.setItem('userEmail', email);
+    setLoading(true);
+    try {
+      // Ajuste a URL e payload conforme seu backend real
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        setLoading(false);
+        return false;
+      }
+
+      const data = await response.json();
+      // Suponha que o backend retorne { token, user: { id, email } }
+      const { token, user } = data;
+
+      if (!token || !user) {
+        setLoading(false);
+        return false;
+      }
+
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+      localStorage.setItem(TOKEN_STORAGE_KEY, token);
+
+      setUser(user);
+      setToken(token);
+      setLoading(false);
+
       return true;
+    } catch (error) {
+      console.error('Erro no login:', error);
+      setLoading(false);
+      return false;
     }
-    return false;
   };
 
   const signOut = () => {
+    localStorage.removeItem(USER_STORAGE_KEY);
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    setUser(null);
     setToken(null);
-    setUserEmail(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('userEmail');
   };
 
   return (
-    <AuthContext.Provider value={{ token, userEmail, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, token, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

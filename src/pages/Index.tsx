@@ -1,13 +1,15 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 interface User {
+  id: string;
   email: string;
+  access_token: string;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signIn: (email: string, token: string) => void;
+  signIn: (user: User) => void;
   signOut: () => void;
 }
 
@@ -20,33 +22,32 @@ export const useAuth = () => {
 };
 
 const USER_STORAGE_KEY = 'appUser';
-const TOKEN_STORAGE_KEY = 'appToken';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Tenta carregar usuário e token do localStorage
     const storedUser = localStorage.getItem(USER_STORAGE_KEY);
-    const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
 
-    if (storedUser && storedToken) {
-      setUser(JSON.parse(storedUser));
+    if (storedUser) {
+      try {
+        const parsedUser: User = JSON.parse(storedUser);
+        setUser(parsedUser);
+      } catch {
+        localStorage.removeItem(USER_STORAGE_KEY);
+      }
     }
     setLoading(false);
   }, []);
 
-  const signIn = (email: string, token: string) => {
-    const userData = { email };
+  const signIn = (userData: User) => {
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
-    localStorage.setItem(TOKEN_STORAGE_KEY, token);
     setUser(userData);
   };
 
   const signOut = () => {
     localStorage.removeItem(USER_STORAGE_KEY);
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
     setUser(null);
   };
 
