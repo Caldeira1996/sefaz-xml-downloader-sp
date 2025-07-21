@@ -1,20 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const { buscarCertificadoPorId } = require('../services/certificados');
-const { consultarNFe } = require('../services/certificados');
+const { buscarCertificado } = require('../services/certificados');
+const { consultarNFe } = require('../services/sefaz');
+const { validateToken } = require('../services/auth');
 
-// Middleware simples de validação de token (pode importar do seu service)
-const { validateToken } = require('../services/auth'); // se já tiver
-// Se não tiver, implemente aqui:
+router.use(validateToken); // protege todas as rotas abaixo
 
 // POST /api/sefaz/status
-router.post('/status', validateToken, async (req, res) => {
+router.post('/status', async (req, res) => {
   try {
-    // Aqui a lógica para checar status da SEFAZ
-    // Exemplo simplificado:
-
     const ambiente = req.body.ambiente || 'homologacao';
-
     res.json({
       success: true,
       ambiente,
@@ -27,30 +22,29 @@ router.post('/status', validateToken, async (req, res) => {
   }
 });
 
-// POST /api/sefaz/consulta (seu código já existente)
+// POST /api/sefaz/consulta
 router.post('/consulta', async (req, res) => {
   try {
     console.log('Recebido corpo:', req.body);
     const { certificadoId, cnpjConsultado, tipoConsulta, ambiente, dataInicio, dataFim } = req.body;
-    
-    // Validar obrigatórios
+
     if (!certificadoId || !cnpjConsultado || !tipoConsulta || !ambiente) {
       return res.status(400).json({ error: 'Parâmetros obrigatórios faltando' });
     }
-    
-    const userId = req.user?.id;
-    if (!userId) {
+
+    const user = req.user;
+    if (!user || !user.id) {
       return res.status(401).json({ error: 'Usuário não autenticado' });
     }
-    console.log('User ID:', userId);
-    
-    const certificado = await buscarCertificado(certificadoId, userId);
+    console.log('User ID:', user.id);
+
+    const certificado = await buscarCertificado(certificadoId, user);
     console.log('Certificado:', certificado);
-    
+
     if (!certificado) {
       return res.status(403).json({ error: 'Certificado não encontrado ou não autorizado' });
     }
-    
+
     const resultado = await consultarNFe({
       certificado,
       cnpjConsultado,
@@ -59,7 +53,7 @@ router.post('/consulta', async (req, res) => {
       dataInicio,
       dataFim,
     });
-    
+
     console.log('Resultado da consulta:', resultado);
     res.json(resultado);
   } catch (err) {
@@ -67,17 +61,6 @@ router.post('/consulta', async (req, res) => {
     console.error(err.stack);
     res.status(500).json({ error: 'Erro interno ao consultar a SEFAZ' });
   }
-});
-
-router.post('/status', async (req, res) => {
-  // Exemplo simples do endpoint /status
-  const ambiente = req.body.ambiente || 'homologacao';
-  res.json({
-    success: true,
-    ambiente,
-    message: 'Status SEFAZ OK (simulação)',
-    timestamp: new Date().toISOString(),
-  });
 });
 
 module.exports = router;
