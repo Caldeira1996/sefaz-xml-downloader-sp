@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
 import { useAuth } from './AuthProvider';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 export const LoginForm = () => {
   const { signIn } = useAuth();
+  const [isSignUp, setIsSignUp] = useState(false);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Simula API de login
   const fakeApiLogin = (email: string, password: string): Promise<{ token: string }> => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
@@ -19,11 +25,33 @@ export const LoginForm = () => {
     });
   };
 
+  // Simula API de cadastro
+  const fakeApiSignUp = (email: string, password: string): Promise<{ token: string }> => {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (password.length >= 6) {
+          resolve({ token: 'fake-jwt-token' });
+        } else {
+          reject(new Error('Senha muito curta'));
+        }
+      }, 1000);
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
     try {
-      const { token } = await fakeApiLogin(email, password);
+      let token;
+      if (isSignUp) {
+        const response = await fakeApiSignUp(email, password);
+        token = response.token;
+        alert('Cadastro realizado com sucesso!');
+      } else {
+        const response = await fakeApiLogin(email, password);
+        token = response.token;
+      }
       signIn(email, token);
     } catch (error: any) {
       alert(error.message);
@@ -33,31 +61,6 @@ export const LoginForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ maxWidth: 320, margin: 'auto', padding: 20 }}>
-      <input
-        type="email"
-        placeholder="Email"
-        value={email}
-        onChange={e => setEmail(e.target.value)}
-        required
-        style={{ width: '100%', marginBottom: 12, padding: 8 }}
-      />
-      <input
-        type="password"
-        placeholder="Senha"
-        value={password}
-        onChange={e => setPassword(e.target.value)}
-        required
-        style={{ width: '100%', marginBottom: 12, padding: 8 }}
-      />
-      <button type="submit" disabled={loading} style={{ width: '100%', padding: 10 }}>
-        {loading ? 'Entrando...' : 'Entrar'}
-      </button>
-    </form>
-  );
-};
-
-return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
@@ -73,7 +76,7 @@ return (
                 type="email"
                 placeholder="Email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={e => setEmail(e.target.value)}
                 maxLength={255}
                 required
               />
@@ -83,17 +86,13 @@ return (
                 type="password"
                 placeholder="Senha (mínimo 6 caracteres)"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={e => setPassword(e.target.value)}
                 minLength={6}
                 maxLength={128}
                 required
               />
             </div>
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={loading}
-            >
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Carregando...' : (isSignUp ? 'Cadastrar' : 'Entrar')}
             </Button>
             <Button
@@ -101,6 +100,7 @@ return (
               variant="ghost"
               className="w-full"
               onClick={() => setIsSignUp(!isSignUp)}
+              disabled={loading}
             >
               {isSignUp ? 'Já tem conta? Entrar' : 'Não tem conta? Cadastrar'}
             </Button>
@@ -108,4 +108,7 @@ return (
         </CardContent>
       </Card>
     </div>
-);
+  );
+};
+
+export default LoginForm;

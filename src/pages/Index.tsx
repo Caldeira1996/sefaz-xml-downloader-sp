@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import axios from 'axios';
+import axios from "axios";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,26 +12,22 @@ import { XmlsList } from "@/components/sefaz/XmlsList";
 
 export default function Index() {
   const { user, loading, signOut } = useAuth();
-  return <div>Usuário: {user?.email || "não logado"}</div>;
 
   const [certificadosTab, setCertificadosTab] = useState<"listar" | "adicionar">("listar");
   const [refreshCertificados, setRefreshCertificados] = useState(false);
   const [refreshXmls, setRefreshXmls] = useState(false);
 
-  // dentro do componente Index
   const fetchXmls = async () => {
     try {
-      const response = await axios.get('/api/xmls'); // ajuste a URL conforme sua API
+      const response = await axios.get("/api/xmls"); // ajuste conforme sua API
       return response.data; // deve ser XmlNfe[]
     } catch (error) {
-      throw new Error('Falha ao buscar XMLs');
+      throw new Error("Falha ao buscar XMLs");
     }
   };
 
-
   const handleConsultaIniciada = () => {
     setRefreshXmls(true);
-    // reinicia para falso após renderizar
     setTimeout(() => setRefreshXmls(false), 100);
   };
 
