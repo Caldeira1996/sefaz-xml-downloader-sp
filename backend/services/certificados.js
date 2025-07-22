@@ -71,10 +71,3 @@ module.exports = {
   buscarCertificado,
   buscarCertificadoPrincipal,  // <-- NÃO ESQUEÇA DE EXPORTAR!
 };
-
-
-module.exports = {
-  salvarCertificado,
-  listarCertificadosAtivos,
-  buscarCertificado,
-};
