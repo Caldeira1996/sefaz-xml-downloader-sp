@@ -25,6 +25,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
+    console.log('🌐 Requisição recebida de Origin:', origin); // ADICIONE ESTA LINHA!
     if (!origin) return callback(null, true); // req sem origin (ex curl/postman)
     if (allowedOrigins.includes(origin)) {
       return callback(null, origin); // Retorna o origin da requisição
@@ -42,6 +43,7 @@ app.use(express.json());
 // Rotas
 app.use('/api/certificados', certificadosRoutes);   // <- Primeiras rotas de API
 app.use('/api/sefaz', sefazConsultaRoutes);
+app.use('/api/sefaz/status', sefazStatusRouter);
 app.use('/status', sefazStatusRouter);
 app.use('/', uploadCertRouter);                      // <- GENÉRICO, DEIXE POR ÚLTIMO!
 
