@@ -1,3 +1,5 @@
+console.log('Certificados API: Rota acessada!');
+
 const express = require('express');
 const {
   salvarCertificado,
