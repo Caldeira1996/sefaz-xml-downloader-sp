@@ -16,6 +16,8 @@ router.post('/', async (req, res) => {
     console.error(err);
     res.status(500).json({ sucesso: false, erro: err.message });
   }
+  console.log('ROTAS DE CERTIFICADOS CARREGADAS');
+
 });
 
 // Listar certificados ativos - rota pública

@@ -5,54 +5,22 @@ import { Button } from '@/components/ui/button';
 
 export const LoginForm = () => {
   const [isSignUp, setIsSignUp] = useState(false);
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-
-  // Simula API de login
-  const fakeApiLogin = (email: string, password: string): Promise<{ token: string }> => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (email === 'admin@example.com' && password === '123456') {
-          resolve({ token: 'fake-jwt-token' });
-        } else {
-          reject(new Error('Credenciais inválidas'));
-        }
-      }, 1000);
-    });
-  };
-
-  // Simula API de cadastro
-  const fakeApiSignUp = (email: string, password: string): Promise<{ token: string }> => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (password.length >= 6) {
-          resolve({ token: 'fake-jwt-token' });
-        } else {
-          reject(new Error('Senha muito curta'));
-        }
-      }, 1000);
-    });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      if (isSignUp) {
-        await fakeApiSignUp(email, password);
-        alert('Cadastro realizado com sucesso!');
-      } else {
-        await fakeApiLogin(email, password);
-        alert('Login realizado com sucesso!');
-      }
-      // Aqui você pode fazer algo após login/cadastro, tipo resetar formulário
+      // Aqui você pode integrar com sua API real
+      console.log(isSignUp ? 'Cadastro:' : 'Login:', { email, password });
+      alert(`${isSignUp ? 'Cadastro' : 'Login'} enviado com sucesso!`);
       setEmail('');
       setPassword('');
     } catch (error: any) {
-      alert(error.message);
+      alert('Erro: ' + error.message);
     } finally {
       setLoading(false);
     }
