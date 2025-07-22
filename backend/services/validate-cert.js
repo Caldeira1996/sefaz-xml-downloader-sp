@@ -1,8 +1,8 @@
 // validate-cert.js
-const fs = require('fs');
+const fs   = require('fs');
 const https = require('https');
 const axios = require('axios');
-const path = require('path');
+const path  = require('path');
 
 async function validarCertificado(pfxPath, senha) {
   const httpsAgent = new https.Agent({
@@ -12,33 +12,29 @@ async function validarCertificado(pfxPath, senha) {
     rejectUnauthorized: true,
   });
 
-  /* -------- envelope aceito pela SEFAZ‑SP -------- */
-  /* -------- envelope definitivo -------- */
   const xmlEnvelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"
-                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                 xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+                 xmlns:ws="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4"
+                 xmlns:nfe="http://www.portalfiscal.inf.br/nfe">
   <soap12:Header>
-    <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4"
-                 soap12:mustUnderstand="0">
+    <ws:nfeCabecMsg soap12:mustUnderstand="0">
       <cUF>35</cUF>
       <versaoDados>4.00</versaoDados>
-    </nfeCabecMsg>
+    </ws:nfeCabecMsg>
   </soap12:Header>
 
   <soap12:Body>
-    <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
-      <nfeDadosMsg><![CDATA[
-        <consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
-          <tpAmb>1</tpAmb>
+    <ws:nfeStatusServicoNF>
+      <ws:nfeDadosMsg>
+        <nfe:consStatServ versao="4.00">
+          <tpAmb>1</tpAmb>   <!-- 1 produção │ 2 homologação -->
           <cUF>35</cUF>
           <xServ>STATUS</xServ>
-        </consStatServ>
-      ]]></nfeDadosMsg>
-    </nfeStatusServicoNF>
+        </nfe:consStatServ>
+      </ws:nfeDadosMsg>
+    </ws:nfeStatusServicoNF>
   </soap12:Body>
 </soap12:Envelope>`;
-
 
   const headers = {
     'Content-Type':
@@ -60,7 +56,7 @@ async function validarCertificado(pfxPath, senha) {
   }
 }
 
-/* -------- teste -------- */
+/* ---- teste ---- */
 (async () => {
   const pfx = path.join(
     __dirname,
