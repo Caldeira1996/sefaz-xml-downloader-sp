@@ -41,27 +41,37 @@ async function listarCertificadosAtivos() {
 }
 
 // Buscar certificado pelo ID
-async function buscarCertificado(certificadoId) {
+// Buscar o certificado principal (o primeiro, por enquanto)
+async function buscarCertificadoPrincipal() {
   const query = `
     SELECT id, nome, cnpj, validade, tipo, certificado_base64, senha
     FROM certificados
-    WHERE id = $1
+    WHERE validade IS NULL OR validade > NOW()
+    ORDER BY criado_em DESC
+    LIMIT 1
   `;
-  const { rows } = await pool.query(query, [certificadoId]);
-  if (rows.length === 0) {
-    throw new Error('Certificado não encontrado');
+  const { rows } = await pool.query(query);
+  if (!rows.length) {
+    throw new Error('Nenhum certificado principal encontrado');
   }
-  // Não envie o base64 nem senha para listagem geral, só para quem realmente precisa
   return {
     id: rows[0].id,
     nome: rows[0].nome,
     cnpj: rows[0].cnpj,
     validade: rows[0].validade,
     tipo: rows[0].tipo,
-    certificado_base64: rows[0].certificado_base64, // só se necessário!
-    senha_certificado: rows[0].senha,               // só se necessário!
+    certificado_base64: rows[0].certificado_base64,
+    senha_certificado: rows[0].senha,
   };
 }
+
+module.exports = {
+  salvarCertificado,
+  listarCertificadosAtivos,
+  buscarCertificado,
+  buscarCertificadoPrincipal,  // <-- NÃO ESQUEÇA DE EXPORTAR!
+};
+
 
 module.exports = {
   salvarCertificado,
