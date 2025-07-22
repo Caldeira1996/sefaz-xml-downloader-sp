@@ -41,10 +41,10 @@ app.use(cors({
 app.use(express.json());
 
 // Rotas
-app.use('/', uploadCertRouter);
+app.use('/api/certificados', certificadosRoutes);    // <- Primeiras rotas de API
 app.use('/api/sefaz', sefazConsultaRoutes);
 app.use('/status', sefazStatusRouter);
-app.use('/api/certificados', certificadosRoutes);
+app.use('/', uploadCertRouter);                      // <- GENÉRICO, DEIXE POR ÚLTIMO!
 
 
 // Rota raiz simples para teste
