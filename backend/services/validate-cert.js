@@ -6,10 +6,10 @@ async function validarCertificadoBuffer({ bufferPfx, senhaCertificado }) {
     const httpsAgent = new https.Agent({
       pfx: bufferPfx,
       passphrase: senhaCertificado,
-      rejectUnauthorized: false,
+      rejectUnauthorized: false,  // aceita certificados autoassinados para teste
     });
 
-    const xmlEnvelope = `
+    const xmlEnvelope = `<?xml version="1.0" encoding="utf-8"?>
       <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
         <soap:Header/>
         <soap:Body>
@@ -20,8 +20,7 @@ async function validarCertificadoBuffer({ bufferPfx, senhaCertificado }) {
             <nfe:xServ>STATUS</nfe:xServ>
           </nfe:nfeStatusServicoNF>
         </soap:Body>
-      </soap:Envelope>
-    `;
+      </soap:Envelope>`;
 
     const url = 'https://nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx';
 

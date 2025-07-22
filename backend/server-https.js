@@ -1,7 +1,6 @@
-// server-https.js
 const https = require('https');
-const { setupHTTPS } = require('./setup-https');
 const app = require('./server');
+const { setupHTTPS } = require('./setup-https');
 
 const PORT = process.env.HTTPS_PORT || 3002;
 const HOST = process.env.SERVER_HOST || '0.0.0.0';
@@ -13,7 +12,7 @@ console.log(`🌐 Host configurado: ${HOST}`);
 const sslConfig = setupHTTPS();
 
 if (!sslConfig) {
-  console.log('❌ Não foi possível carregar os certificados SSL.');
+  console.error('❌ Não foi possível carregar os certificados SSL.');
   process.exit(1);
 }
 
@@ -28,7 +27,7 @@ const tryStartServer = (port) => {
 
   httpsServer.on('error', (error) => {
     if (error.code === 'EADDRINUSE') {
-      console.log(`⚠️ Porta ${port} já está em uso. Tentando porta ${port + 1}...`);
+      console.warn(`⚠️ Porta ${port} já está em uso. Tentando porta ${port + 1}...`);
       httpsServer.close();
       tryStartServer(port + 1);
     } else {

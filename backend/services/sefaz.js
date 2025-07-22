@@ -36,7 +36,7 @@ async function consultarNFe({ certificadoBuffer, senhaCertificado, cnpjConsultad
   const httpsAgent = new https.Agent({
     pfx: certificadoBuffer,
     passphrase: senhaCertificado,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   });
 
   const url = ambiente === 'producao'

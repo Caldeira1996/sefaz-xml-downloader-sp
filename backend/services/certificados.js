@@ -1,19 +1,14 @@
-// services/certificado.js
-const pool = require('../db');
-
-async function buscarCertificado(certificadoId, user) {
+async function buscarCertificado(certificadoId) {
   const query = `
     SELECT certificado_base64, senha_certificado FROM certificados
-    WHERE id = $1 AND user_id = $2
+    WHERE id = $1
   `;
-  const { rows } = await pool.query(query, [certificadoId, user.id]);
+  const { rows } = await pool.query(query, [certificadoId]);
   if (rows.length === 0) {
-    throw new Error('Certificado não encontrado ou não autorizado');
+    throw new Error('Certificado não encontrado');
   }
   return {
     certificadoBuffer: Buffer.from(rows[0].certificado_base64, 'base64'),
     senhaCertificado: rows[0].senha_certificado,
   };
 }
-
-module.exports = { buscarCertificado };

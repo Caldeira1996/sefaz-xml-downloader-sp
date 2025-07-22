@@ -1,17 +1,20 @@
-// sefaz-request.js
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 
+// Defina o caminho da pasta onde seus arquivos PEM estão salvos
 const certDir = path.join(__dirname, 'certs');
+
+// Coloque aqui a senha do seu certificado, ou obtenha de variável de ambiente
+const passphrase = process.env.CERT_PASS || 'sua_senha_aqui';
 
 const httpsAgent = new https.Agent({
   cert: fs.readFileSync(path.join(certDir, 'client-cert.pem')),
   key: fs.readFileSync(path.join(certDir, 'client-key.pem')),
   ca: fs.readFileSync(path.join(certDir, 'ca-chain.pem')),
-  rejectUnauthorized: true,
   passphrase,
+  rejectUnauthorized: true,
 });
 
 const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
@@ -39,7 +42,7 @@ axios.post(
   {
     headers: {
       'Content-Type': 'application/soap+xml; charset=utf-8',
-      'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF'
+      'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF',
     },
     httpsAgent,
   }
