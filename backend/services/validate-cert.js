@@ -1,8 +1,8 @@
 // validate-cert.js
-const fs = require('fs');
+const fs   = require('fs');
 const https = require('https');
 const axios = require('axios');
-const path = require('path');
+const path  = require('path');
 
 async function validarCertificado(pfxPath, senha) {
   const httpsAgent = new https.Agent({
@@ -13,52 +13,43 @@ async function validarCertificado(pfxPath, senha) {
   });
 
   const xmlEnvelope = `<?xml version="1.0" encoding="utf-8"?>
-<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"
-                 xmlns:ws="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4"
-                 xmlns:nfe="http://www.portalfiscal.inf.br/nfe">
+<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
   <soap12:Header>
-  <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4"
-               soap12:mustUnderstand="0">
-    <versaoDados>4.00</versaoDados>
-    <cUF>35</cUF>
-  </nfeCabecMsg>
-</soap12:Header>
-
+    <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4"
+                 soap12:mustUnderstand="0">
+      <versaoDados>4.00</versaoDados>
+      <cUF>35</cUF>
+    </nfeCabecMsg>
+  </soap12:Header>
 
   <soap12:Body>
-    <ws:nfeStatusServicoNF>
-      <ws:nfeDadosMsg>
-        <nfe:consStatServ versao="4.00">
-          <tpAmb>1</tpAmb>   <!-- 1 produção │ 2 homologação -->
+    <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
+      <nfeDadosMsg><![CDATA[
+        <consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+          <tpAmb>1</tpAmb>
           <cUF>35</cUF>
           <xServ>STATUS</xServ>
-        </nfe:consStatServ>
-      </ws:nfeDadosMsg>
-    </ws:nfeStatusServicoNF>
+        </consStatServ>
+      ]]></nfeDadosMsg>
+    </nfeStatusServicoNF>
   </soap12:Body>
 </soap12:Envelope>`;
 
   const headers = {
     'Content-Type':
-      'application/soap+xml; charset=utf-8; ' +
-      'action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"',
+      'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"',
   };
 
-  try {
-    const { data } = await axios.post(
-      'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx',
-      xmlEnvelope,
-      { httpsAgent, headers, timeout: 15000 }
-    );
-    return { valido: true, resposta: data };
-  } catch (err) {
-    return err.response
-      ? { valido: false, status: err.response.status, data: err.response.data, erro: err.message }
-      : { valido: false, erro: err.message };
-  }
+  const { data } = await axios.post(
+    'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx',
+    xmlEnvelope,
+    { httpsAgent, headers, timeout: 15000 }
+  );
+
+  return data;
 }
 
-/* ---- teste ---- */
+/* teste */
 (async () => {
   const pfx = path.join(
     __dirname,
