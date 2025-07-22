@@ -7,7 +7,7 @@ const sefazStatusRouter = require('./routes/sefaz-status');
 
 const uploadCertRouter = require('./routes/upload-cert');
 const sefazConsultaRoutes = require('./routes/sefaz-consulta');
-const certificadosRoutes = require('./routes/certificados'); 
+const certificadosRoutes = require('./routes/certificados');
 const sefazStatusRouter = require('./routes/sefaz-status');
 
 const app = express();
@@ -41,11 +41,10 @@ app.use(cors({
 app.use(express.json());
 
 // Rotas
-app.use('/api/certificados', certificadosRoutes);    // <- Primeiras rotas de API
+app.use('/api/certificados', certificadosRoutes);   // <- Primeiras rotas de API
 app.use('/api/sefaz', sefazConsultaRoutes);
 app.use('/status', sefazStatusRouter);
 app.use('/', uploadCertRouter);                      // <- GENÉRICO, DEIXE POR ÚLTIMO!
-
 
 // Rota raiz simples para teste
 app.get('/', (req, res) => {

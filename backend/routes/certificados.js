@@ -7,6 +7,12 @@ const {
 
 const router = express.Router();
 
+//route teste
+router.get('/teste', (req, res) => {
+  res.send('Certificados route está funcionando');
+});
+
+
 // POST /api/certificados - cadastrar novo certificado
 router.post('/', async (req, res) => {
   try {
