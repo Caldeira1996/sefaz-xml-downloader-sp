@@ -12,35 +12,34 @@ async function validarCertificado(pfxPath, senha) {
     rejectUnauthorized: true,
   });
 
+  /* -------- envelope aceito pela SEFAZ‑SP -------- */
   const xmlEnvelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"
-                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                 xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+                 xmlns:ws="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
   <soap12:Header>
-    <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4"
-                 soap12:mustUnderstand="0">
+    <ws:nfeCabecMsg soap12:mustUnderstand="1">
       <cUF>35</cUF>
       <versaoDados>4.00</versaoDados>
-    </nfeCabecMsg>
+    </ws:nfeCabecMsg>
   </soap12:Header>
 
   <soap12:Body>
-    <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
-      <nfeDadosMsg>
-        <consStatServ versao="4.00"
-                      xmlns="http://www.portalfiscal.inf.br/nfe">
+    <ws:nfeStatusServicoNF>
+      <ws:nfeDadosMsg><![CDATA[
+        <consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
           <tpAmb>1</tpAmb>
           <cUF>35</cUF>
           <xServ>STATUS</xServ>
         </consStatServ>
-      </nfeDadosMsg>
-    </nfeStatusServicoNF>
+      ]]></ws:nfeDadosMsg>
+    </ws:nfeStatusServicoNF>
   </soap12:Body>
 </soap12:Envelope>`;
 
   const headers = {
     'Content-Type':
-      'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"',
+      'application/soap+xml; charset=utf-8; ' +
+      'action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"',
   };
 
   try {
@@ -57,7 +56,7 @@ async function validarCertificado(pfxPath, senha) {
   }
 }
 
-/* ----- teste ------ */
+/* -------- teste -------- */
 (async () => {
   const pfx = path.join(
     __dirname,
