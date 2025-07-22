@@ -6,14 +6,16 @@ const path = require('path');
 async function validarCertificadoDiretoArquivo(pfxFilePath, senhaCertificado) {
   try {
     const certificadoBuffer = fs.readFileSync(pfxFilePath);
+    // Carrega a cadeia de certificados da ICP-Brasil
+    const ca = fs.readFileSync(path.join(__dirname, '../certs/ca-chain.pem'));
 
     const httpsAgent = new https.Agent({
       pfx: certificadoBuffer,
       passphrase: senhaCertificado,
-      rejectUnauthorized: true, // Coloque true para produção
+      ca: ca, // Adicione isso!
+      rejectUnauthorized: true,
     });
 
-    // Envelope SOAP 1.2 com xmlDadosMsg
     const xmlEnvelope = `
 <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
   <soap12:Body>
@@ -43,7 +45,6 @@ async function validarCertificadoDiretoArquivo(pfxFilePath, senhaCertificado) {
 
     return { valido: true, resposta: response.data };
   } catch (err) {
-    // Mostra erro detalhado da SEFAZ se tiver
     if (err.response) {
       return {
         valido: false,
@@ -57,10 +58,9 @@ async function validarCertificadoDiretoArquivo(pfxFilePath, senhaCertificado) {
   }
 }
 
-// Use assim:
 (async () => {
   const pathCert = path.join(__dirname, '../certificates', '52.055.075 VANUZIA BARBOSA DE JESUS_52055075000173.pfx');
-  const senha = '123456'; // SUA SENHA DO PFX
+  const senha = '123456';
   const result = await validarCertificadoDiretoArquivo(pathCert, senha);
   console.log(result);
 })();
