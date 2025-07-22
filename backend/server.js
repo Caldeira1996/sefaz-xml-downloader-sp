@@ -1,7 +1,9 @@
 require('dotenv').config();
 const express = require('express');
+const bodyParser = require('body-parser');
 const cors = require('cors');
 const fs = require('fs');
+const sefazStatusRouter = require('./routes/sefaz-status');
 
 const uploadCertRouter = require('./routes/upload-cert');
 const sefazConsultaRoutes = require('./routes/sefaz-consulta');
@@ -9,6 +11,8 @@ const certificadosRoutes = require('./routes/certificados'); // se existir
 const sefazStatusRouter = require('./routes/sefaz-status');
 
 const app = express();
+
+app.use(bodyParser.json()); // Necessário para ler JSON no POST
 
 const allowedOrigins = [
   'https://www.xmlprodownloader.com.br',

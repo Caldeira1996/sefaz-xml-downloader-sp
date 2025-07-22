@@ -1,22 +1,22 @@
 const express = require('express');
 const router = express.Router();
 
-// ✅ Rota de status simples para testes
+// GET /status
 router.get('/', (req, res) => {
   res.json({
     status: 'OK',
-    mensagem: 'Rota /status funcionando corretamente',
+    servidor: 'Proxy SEFAZ SP',
     timestamp: new Date().toISOString(),
+    ambiente: process.env.NODE_ENV || 'development',
   });
 });
 
-// ✅ Rota POST também (caso queira testar via POST como seu front faz)
+// POST /status
 router.post('/', (req, res) => {
-  const ambiente = req.body.ambiente || 'desconhecido';
+  const ambiente = req.body.ambiente || 'não informado';
   res.json({
     status: 'OK',
-    ambienteRecebido: ambiente,
-    mensagem: 'Consulta de status SEFAZ realizada com sucesso (modo teste)',
+    ambiente_recebido: ambiente,
     timestamp: new Date().toISOString(),
   });
 });
