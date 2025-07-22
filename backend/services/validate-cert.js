@@ -45,7 +45,7 @@ async function validarCertificadoDiretoArquivo(pfxFilePath, senhaCertificado) {
 // Use assim:
 (async () => {
   const pathCert = path.join(__dirname, '../certificates', '52.055.075 VANUZIA BARBOSA DE JESUS_52055075000173.pfx');
-  const senha = 'SENHA_CORRETA';
+  const senha = '123456';
   const result = await validarCertificadoDiretoArquivo(pathCert, senha);
   console.log(result);
 })();
