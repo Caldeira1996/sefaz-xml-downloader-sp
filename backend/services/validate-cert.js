@@ -5,24 +5,25 @@ const axios = require('axios');
 const path  = require('path');
 
 async function validarCertificado(pfxPath, senha) {
+  /* --- agente TLS com o .pfx e a cadeia ICP‑Brasil --- */
   const httpsAgent = new https.Agent({
     pfx: fs.readFileSync(pfxPath),
     passphrase: senha,
     ca: fs.readFileSync(path.join(__dirname, '../certs/ca-chain.pem')),
-    rejectUnauthorized: true,
+    rejectUnauthorized: true,           // deixe true em produção
   });
 
-  /* Envelope SOAP 1.2 – namespace e tag corretos */
+  /* --- envelope SOAP 1.2 (namespaces & tags corretas) --- */
   const xmlEnvelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"
                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                  xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <soap12:Body>
-    <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NfeStatusServico4">
+    <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
       <nfeDadosMsg><![CDATA[
         <consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
           <tpAmb>1</tpAmb>        <!-- 1 = produção | 2 = homologação -->
-          <cUF>35</cUF>           <!-- 35 = SP -->
+          <cUF>35</cUF>           <!-- 35 = São Paulo -->
           <xServ>STATUS</xServ>
         </consStatServ>
       ]]></nfeDadosMsg>
@@ -30,22 +31,19 @@ async function validarCertificado(pfxPath, senha) {
   </soap12:Body>
 </soap12:Envelope>`;
 
+  /* --- cabeçalho SOAP 1.2: action vai dentro do Content‑Type --- */
   const headers = {
     'Content-Type':
       'application/soap+xml; charset=utf-8; ' +
-      'action="http://www.portalfiscal.inf.br/nfe/wsdl/NfeStatusServico4/nfeStatusServicoNF"',
-    // opcional, mas alguns servidores antigos pedem também:
-    'SOAPAction':
-      '"http://www.portalfiscal.inf.br/nfe/wsdl/NfeStatusServico4/nfeStatusServicoNF"',
+      'action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"',
   };
 
   try {
     const { data } = await axios.post(
-      'https://nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx',
+      'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx',
       xmlEnvelope,
       { httpsAgent, headers, timeout: 15000 }
     );
-
     return { valido: true, resposta: data };
   } catch (err) {
     return err.response
@@ -54,9 +52,13 @@ async function validarCertificado(pfxPath, senha) {
   }
 }
 
-/* ---- teste rápido ---- */
+/* --- teste rápido --- */
 (async () => {
-  const pfx = path.join(__dirname, '../certificates',
-    '52.055.075 VANUZIA BARBOSA DE JESUS_52055075000173.pfx');
-  console.log(await validarCertificado(pfx, '123456'));
+  const pfx = path.join(
+    __dirname,
+    '../certificates',
+    '52.055.075 VANUZIA BARBOSA DE JESUS_52055075000173.pfx'
+  );
+  const resultado = await validarCertificado(pfx, '123456');
+  console.log(resultado);
 })();
