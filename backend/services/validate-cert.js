@@ -12,13 +12,13 @@ async function validarCertificado(pfxPath, senha) {
     rejectUnauthorized: true,
   });
 
-  /* ----- envelope SOAP 1.2 100 % conforme manual V4.00 ----- */
   const xmlEnvelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"
                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                  xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <soap12:Header>
-    <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
+    <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4"
+                 soap12:mustUnderstand="0">
       <cUF>35</cUF>
       <versaoDados>4.00</versaoDados>
     </nfeCabecMsg>
@@ -57,7 +57,7 @@ async function validarCertificado(pfxPath, senha) {
   }
 }
 
-/* -------- teste -------- */
+/* ----- teste ------ */
 (async () => {
   const pfx = path.join(
     __dirname,
