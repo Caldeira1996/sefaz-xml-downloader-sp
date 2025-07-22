@@ -36,6 +36,7 @@ app.use(express.json());
 app.use('/', uploadCertRouter);
 app.use('/api/sefaz', sefazConsultaRoutes);
 app.use('/api/certificados', certificadosRoutes);
+app.use('/api', certificadosRouter);
 
 // Rota raiz simples para teste
 app.get('/', (req, res) => {

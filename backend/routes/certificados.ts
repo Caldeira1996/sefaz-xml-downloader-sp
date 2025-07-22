@@ -3,6 +3,10 @@ const { salvarCertificado, buscarCertificado, listarCertificadosAtivos } = requi
 
 const router = express.Router();
 
+router.get('/certificados', (req, res) => {
+  res.json({ status: 'Rota funcionando!', certificados: [] });
+});
+
 router.post('/', async (req, res) => {
   try {
     // Extrair dados do req.body
