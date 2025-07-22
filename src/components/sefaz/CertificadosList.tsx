@@ -31,7 +31,7 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
     setLoading(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/api/certificados`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -73,7 +73,7 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
   const marcarComoPrincipal = async (certificadoId: string) => {
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados/${certificadoId}/principal`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/api/certificados/${certificadoId}/principal`,
         {
           method: 'PATCH',
           headers: {
@@ -106,7 +106,7 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados/${certificadoId}`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/api/certificados/${certificadoId}`,
         {
           method: 'DELETE',
           headers: {

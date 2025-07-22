@@ -38,7 +38,7 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
 
   const carregarCertificados = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados?ativo=true`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/api/certificados?ativo=true`, {
         headers: {
           'Content-Type': 'application/json',
           // REMOVIDO Authorization
