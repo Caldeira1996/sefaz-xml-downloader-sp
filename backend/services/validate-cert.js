@@ -16,23 +16,25 @@ async function validarCertificadoDiretoArquivo(pfxFilePath, senhaCertificado) {
     });
 
     const xmlEnvelope = `<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-  <soap:Body>
-    <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NfeStatusServico4">
-      <versao>4.00</versao>
-      <tpAmb>1</tpAmb>
-      <cUF>35</cUF>
-      <xServ>STATUS</xServ>
-    </nfeStatusServicoNF>
-  </soap:Body>
-</soap:Envelope>`;
+<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"
+                 xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NfeStatusServico4">
+  <soap12:Header/>
+  <soap12:Body>
+    <nfe:nfeStatusServicoNF>
+      <nfe:versao>4.00</nfe:versao>
+      <nfe:tpAmb>1</nfe:tpAmb>
+      <nfe:cUF>35</nfe:cUF>
+      <nfe:xServ>STATUS</nfe:xServ>
+    </nfe:nfeStatusServicoNF>
+  </soap12:Body>
+</soap12:Envelope>`;
 
     const url = 'https://nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx';
 
     const response = await axios.post(url, xmlEnvelope, {
       httpsAgent,
       headers: {
-        'Content-Type': 'text/xml; charset=utf-8',
+        'Content-Type': 'application/soap+xml; charset=utf-8',
         'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NfeStatusServico4/nfeStatusServicoNF"',
       },
       timeout: 15000,
