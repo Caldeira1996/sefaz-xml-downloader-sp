@@ -99,18 +99,18 @@ async function consultarStatusSefaz(certificadoBuffer, senhaCertificado, ambient
       timeout: 15000,
     });
 
-    // Pega o XML de resposta como string
     const xmlResposta = response.data;
-
-    // Regex simples só para pegar o cStat e xMotivo do XML
     const cStat = (xmlResposta.match(/<cStat>(\d+)<\/cStat>/) || [])[1] || null;
     const xMotivo = (xmlResposta.match(/<xMotivo>(.+?)<\/xMotivo>/) || [])[1] || null;
 
+    // Sempre retorne error SE NÃO for sucesso:
+    const sucesso = cStat === '107' || cStat === '108' || cStat === '109' || cStat === '111';
     return {
-      sucesso: cStat === '107' || cStat === '108' || cStat === '109' || cStat === '111',
+      sucesso,
       statusCode: cStat,
       motivo: xMotivo,
       raw: xmlResposta,
+      error: sucesso ? null : `[cStat: ${cStat}] ${xMotivo || 'Sem motivo retornado pelo SEFAZ'}`
     };
   } catch (e) {
     return {
@@ -119,6 +119,7 @@ async function consultarStatusSefaz(certificadoBuffer, senhaCertificado, ambient
     };
   }
 }
+
 
 // Agora o EXPORT:
 module.exports = {
