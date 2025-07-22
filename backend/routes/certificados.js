@@ -5,6 +5,8 @@ const {
   listarCertificadosAtivos,
 } = require('../services/certificados');
 
+const { excluirCertificado } = require('../services/certificados');
+
 const router = express.Router();
 
 //route teste
@@ -67,6 +69,20 @@ router.get('/:id', async (req, res) => {
   } catch (err) {
     console.error('Erro ao buscar certificado:', err);
     res.status(404).json({ sucesso: false, erro: err.message });
+  }
+});
+
+// DELETE /api/certificados/:id
+router.delete('/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!id) {
+      return res.status(400).json({ sucesso: false, erro: "ID inválido" });
+    }
+    await excluirCertificado(id);
+    res.json({ sucesso: true, mensagem: `Certificado ${id} removido com sucesso!` });
+  } catch (err) {
+    res.status(500).json({ sucesso: false, erro: err.message || 'Erro ao excluir certificado' });
   }
 });
 

@@ -65,8 +65,14 @@ async function buscarCertificadoPrincipal() {
   };
 }
 
+// Excluir certificado pelo ID
+async function excluirCertificado(id) {
+  await pool.query('DELETE FROM certificados WHERE id = $1', [id]);
+}
+
 module.exports = {
   salvarCertificado,
   listarCertificadosAtivos,
-  buscarCertificadoPrincipal,  // <-- NÃO ESQUEÇA DE EXPORTAR!
+  buscarCertificadoPrincipal,
+  excluirCertificado, 
 };
