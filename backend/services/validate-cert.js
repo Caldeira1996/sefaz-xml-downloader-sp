@@ -1,8 +1,8 @@
 // validate-cert.js
-const fs   = require('fs');
+const fs = require('fs');
 const https = require('https');
 const axios = require('axios');
-const path  = require('path');
+const path = require('path');
 
 async function validarCertificado(pfxPath, senha) {
   const httpsAgent = new https.Agent({
@@ -17,11 +17,13 @@ async function validarCertificado(pfxPath, senha) {
                  xmlns:ws="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4"
                  xmlns:nfe="http://www.portalfiscal.inf.br/nfe">
   <soap12:Header>
-    <ws:nfeCabecMsg soap12:mustUnderstand="0">
-      <cUF>35</cUF>
-      <versaoDados>4.00</versaoDados>
-    </ws:nfeCabecMsg>
-  </soap12:Header>
+  <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4"
+               soap12:mustUnderstand="0">
+    <versaoDados>4.00</versaoDados>
+    <cUF>35</cUF>
+  </nfeCabecMsg>
+</soap12:Header>
+
 
   <soap12:Body>
     <ws:nfeStatusServicoNF>
