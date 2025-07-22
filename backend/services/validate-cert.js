@@ -1,12 +1,15 @@
+const fs = require('fs');
 const https = require('https');
 const axios = require('axios');
+const path = require('path');
 
-async function validarCertificadoBuffer({ bufferPfx, senhaCertificado }) {
+async function validarCertificadoDiretoArquivo(pfxFilePath, senhaCertificado) {
   try {
+    const certificadoBuffer = fs.readFileSync(pfxFilePath);
     const httpsAgent = new https.Agent({
-      pfx: bufferPfx,
+      pfx: certificadoBuffer,
       passphrase: senhaCertificado,
-      rejectUnauthorized: false,  // aceita certificados autoassinados para teste
+      rejectUnauthorized: false, // pode deixar true para produção
     });
 
     const xmlEnvelope = `<?xml version="1.0" encoding="utf-8"?>
@@ -15,7 +18,7 @@ async function validarCertificadoBuffer({ bufferPfx, senhaCertificado }) {
         <soap:Body>
           <nfe:nfeStatusServicoNF>
             <nfe:versao>4.00</nfe:versao>
-            <nfe:tpAmb>2</nfe:tpAmb>
+            <nfe:tpAmb>1</nfe:tpAmb>
             <nfe:cUF>35</nfe:cUF>
             <nfe:xServ>STATUS</nfe:xServ>
           </nfe:nfeStatusServicoNF>
@@ -33,14 +36,16 @@ async function validarCertificadoBuffer({ bufferPfx, senhaCertificado }) {
       timeout: 10000,
     });
 
-    if (response.status === 200) {
-      return { valido: true, resposta: response.data };
-    } else {
-      return { valido: false, erro: `Resposta inesperada da SEFAZ: ${response.status}` };
-    }
+    return { valido: true, resposta: response.data };
   } catch (err) {
-    return { valido: false, erro: err.message || 'Erro desconhecido' };
+    return { valido: false, erro: err.message };
   }
 }
 
-module.exports = { validarCertificadoBuffer };
+// Use assim:
+(async () => {
+  const pathCert = path.join(__dirname, '../certificates', '52.055.075 VANUZIA BARBOSA DE JESUS_52055075000173.pfx');
+  const senha = 'SENHA_CORRETA';
+  const result = await validarCertificadoDiretoArquivo(pathCert, senha);
+  console.log(result);
+})();
