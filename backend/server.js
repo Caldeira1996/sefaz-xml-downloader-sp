@@ -9,6 +9,11 @@ const certificadosRoutes = require('./routes/certificados'); // se existir
 
 const app = express();
 
+app.get('/api/certificados', (req, res) => {
+  res.json({ status: 'rota funcionando!' });
+});
+
+
 const allowedOrigins = [
   'https://www.xmlprodownloader.com.br',
   'https://xmlprodownloader.com.br',
