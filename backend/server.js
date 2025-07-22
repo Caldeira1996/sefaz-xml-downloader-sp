@@ -18,12 +18,11 @@ const allowedOrigins = [
   'https://www.xmlprodownloader.com.br',
   'https://xmlprodownloader.com.br',
   'http://localhost:5173',
-  'https://api.xmlprodownloader.com.br',
-  'http://56.124.22.200:3002',
-  'https://56.124.22.200:3002', // Adicione HTTPS também
-  'http://localhost:3000', // Para desenvolvimento local
+  'http://localhost:3000',
   'https://localhost:3000',
+  // Adicione a origem que aparece no erro, se for diferente!
 ];
+
 
 app.use(cors({
   origin: function (origin, callback) {
