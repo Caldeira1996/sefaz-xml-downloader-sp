@@ -8,6 +8,7 @@ const uploadCertRouter = require('./routes/upload-cert');
 const sefazConsultaRoutes = require('./routes/sefaz-consulta');
 const certificadosRoutes = require('./routes/certificados');
 const sefazStatusRouter = require('./routes/sefazStatus');
+const sefazDownloadRouter = require('./routes/sefaz-download');
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.use('/api/sefaz', sefazConsultaRoutes);
 // app.use('/api/sefaz/status', sefazStatusRouter);
 app.use('/api/status', sefazStatusRouter); // chamada de API correta
 app.use('/', uploadCertRouter);                      // <- GENÉRICO, DEIXE POR ÚLTIMO!
+app.use('/api/sefaz', sefazDownloadRouter);
 
 // Rota raiz simples para teste
 app.get('/', (req, res) => {
