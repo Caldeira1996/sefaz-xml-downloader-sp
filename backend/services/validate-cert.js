@@ -6,40 +6,35 @@ const path = require('path');
 async function validarCertificadoDiretoArquivo(pfxFilePath, senhaCertificado) {
   try {
     const certificadoBuffer = fs.readFileSync(pfxFilePath);
-    // Carrega a cadeia de certificados da ICP-Brasil
     const ca = fs.readFileSync(path.join(__dirname, '../certs/ca-chain.pem'));
 
     const httpsAgent = new https.Agent({
       pfx: certificadoBuffer,
       passphrase: senhaCertificado,
-      ca: ca, // Adicione isso!
+      ca: ca,
       rejectUnauthorized: true,
     });
 
-    const xmlEnvelope = `
-<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-  <soap12:Body>
-    <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NfeStatusServico4">
-      <xmlDadosMsg><![CDATA[
-        <consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
-          <tpAmb>1</tpAmb>
-          <cUF>35</cUF>
-          <xServ>STATUS</xServ>
-        </consStatServ>
-      ]]></xmlDadosMsg>
-    </nfeStatusServicoNF>
-  </soap12:Body>
-</soap12:Envelope>
-`;
+    const xmlEnvelope = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NfeStatusServico4">
+  <soap:Header/>
+  <soap:Body>
+    <nfe:nfeStatusServicoNF>
+      <nfe:versao>4.00</nfe:versao>
+      <nfe:tpAmb>1</nfe:tpAmb>
+      <nfe:cUF>35</nfe:cUF>
+      <nfe:xServ>STATUS</nfe:xServ>
+    </nfe:nfeStatusServicoNF>
+  </soap:Body>
+</soap:Envelope>`;
 
     const url = 'https://nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx';
 
     const response = await axios.post(url, xmlEnvelope, {
       httpsAgent,
       headers: {
-        'Content-Type': 'text/xml; charset=utf-8', // SOAP 1.1
+        'Content-Type': 'text/xml; charset=utf-8',
         'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeStatusServico4/nfeStatusServicoNF',
-
       },
       timeout: 15000,
     });
