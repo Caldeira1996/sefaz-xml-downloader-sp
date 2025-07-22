@@ -13,7 +13,7 @@ const httpsAgent = new https.Agent({
   cert: fs.readFileSync(path.join(certDir, 'client-cert.pem')),
   key: fs.readFileSync(path.join(certDir, 'client-key.pem')),
   ca: fs.readFileSync(path.join(certDir, 'ca-chain.pem')),
-  passphrase,
+  //passphrase,
   rejectUnauthorized: true,
 });
 
@@ -23,15 +23,13 @@ const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
   <soap:Header/>
   <soap:Body>
     <nfe:nfeStatusServicoNF>
-      <nfe:xmlDados>
-        <![CDATA[
-          <consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
-            <tpAmb>1</tpAmb>
-            <cUF>35</cUF>
-            <xServ>STATUS</xServ>
-          </consStatServ>
-        ]]>
-      </nfe:xmlDados>
+      <xmlDadosMsg><![CDATA[
+        <consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+          <tpAmb>1</tpAmb>
+          <cUF>35</cUF>
+          <xServ>STATUS</xServ>
+        </consStatServ>
+      ]]></xmlDadosMsg>
     </nfe:nfeStatusServicoNF>
   </soap:Body>
 </soap:Envelope>`;
