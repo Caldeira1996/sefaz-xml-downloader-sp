@@ -32,9 +32,9 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
   const [ultimoResultado, setUltimoResultado] = useState<any>(null);
   const { toast } = useToast();
 
-  // useEffect(() => {
-  //   carregarCertificados();
-  // }, []);
+  useEffect(() => {
+    carregarCertificados();
+  }, []);
 
   const carregarCertificados = async () => {
     try {

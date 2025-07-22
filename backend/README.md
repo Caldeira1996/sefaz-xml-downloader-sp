@@ -45,7 +45,7 @@ backend/
 ### GET /health
 Verifica se o servidor está funcionando.
 
-### POST /api/sefaz/status
+### POST /api/status
 Verifica o status dos serviços SEFAZ SP.
 
 ### POST /api/sefaz/consulta

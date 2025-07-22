@@ -110,7 +110,7 @@ export const StatusConectividade = () => {
       }
 
       // Backend online, consultar status SEFAZ (sem token)
-      const response = await fetch(`${backendBaseUrl}/api/sefaz/status`, {
+      const response = await fetch(`${backendBaseUrl}/api/status`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
