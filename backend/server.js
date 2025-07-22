@@ -13,6 +13,7 @@ const allowedOrigins = [
   'https://www.xmlprodownloader.com.br',
   'https://xmlprodownloader.com.br',
   'http://localhost:5173', // para dev local
+  'https://api.xmlprodownloader.com.br',
 ];
 
 // Configura CORS antes das rotas
@@ -42,7 +43,7 @@ app.get('/', (req, res) => {
 });
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/health/?', (req, res) => {
   res.json({
     status: 'OK',
     servidor: 'Proxy SEFAZ SP',
