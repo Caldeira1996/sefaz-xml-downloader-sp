@@ -44,7 +44,7 @@ app.use(express.json());
 app.use('/api/certificados', certificadosRoutes);   // <- Primeiras rotas de API
 app.use('/api/sefaz', sefazConsultaRoutes);
 // app.use('/api/sefaz/status', sefazStatusRouter);
-app.use('/status', sefazStatusRouter); // chamada de API correta
+app.use('/api/status', sefazStatusRouter); // chamada de API correta
 app.use('/', uploadCertRouter);                      // <- GENÉRICO, DEIXE POR ÚLTIMO!
 
 // Rota raiz simples para teste
