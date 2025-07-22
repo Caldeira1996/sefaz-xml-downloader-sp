@@ -13,25 +13,17 @@ async function validarCertificado(pfxPath, senha) {
   });
 
   const xmlEnvelope = `<?xml version="1.0" encoding="utf-8"?>
-<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-  <soap12:Header>
-    <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4"
-                 soap12:mustUnderstand="0">
-      <versaoDados>4.00</versaoDados>
-      <cUF>35</cUF>
-    </nfeCabecMsg>
-  </soap12:Header>
-
+<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <soap12:Body>
-    <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
-      <nfeDadosMsg><![CDATA[
-        <consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
-          <tpAmb>1</tpAmb>
-          <cUF>35</cUF>
-          <xServ>STATUS</xServ>
-        </consStatServ>
-      ]]></nfeDadosMsg>
-    </nfeStatusServicoNF>
+    <nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
+      <consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+        <tpAmb>1</tpAmb>
+        <cUF>35</cUF>
+        <xServ>STATUS</xServ>
+      </consStatServ>
+    </nfeDadosMsg>
   </soap12:Body>
 </soap12:Envelope>`;
 
@@ -46,7 +38,7 @@ async function validarCertificado(pfxPath, senha) {
     { httpsAgent, headers, timeout: 15000 }
   );
 
-  return data;
+  console.log(data);
 }
 
 /* teste */
@@ -56,5 +48,5 @@ async function validarCertificado(pfxPath, senha) {
     '../certificates',
     '52.055.075 VANUZIA BARBOSA DE JESUS_52055075000173.pfx'
   );
-  console.log(await validarCertificado(pfx, '123456'));
+  await validarCertificado(pfx, '123456');
 })();
