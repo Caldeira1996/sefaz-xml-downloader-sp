@@ -1,8 +1,8 @@
 // validate-cert.js
-const fs   = require('fs');
+const fs = require('fs');
 const https = require('https');
 const axios = require('axios');
-const path  = require('path');
+const path = require('path');
 
 async function validarCertificado(pfxPath, senha) {
   const httpsAgent = new https.Agent({
@@ -13,28 +13,32 @@ async function validarCertificado(pfxPath, senha) {
   });
 
   /* -------- envelope aceito pela SEFAZ‑SP -------- */
+  /* -------- envelope definitivo -------- */
   const xmlEnvelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"
-                 xmlns:ws="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <soap12:Header>
-    <ws:nfeCabecMsg soap12:mustUnderstand="1">
+    <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4"
+                 soap12:mustUnderstand="0">
       <cUF>35</cUF>
       <versaoDados>4.00</versaoDados>
-    </ws:nfeCabecMsg>
+    </nfeCabecMsg>
   </soap12:Header>
 
   <soap12:Body>
-    <ws:nfeStatusServicoNF>
-      <ws:nfeDadosMsg><![CDATA[
+    <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
+      <nfeDadosMsg><![CDATA[
         <consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
           <tpAmb>1</tpAmb>
           <cUF>35</cUF>
           <xServ>STATUS</xServ>
         </consStatServ>
-      ]]></ws:nfeDadosMsg>
-    </ws:nfeStatusServicoNF>
+      ]]></nfeDadosMsg>
+    </nfeStatusServicoNF>
   </soap12:Body>
 </soap12:Envelope>`;
+
 
   const headers = {
     'Content-Type':
