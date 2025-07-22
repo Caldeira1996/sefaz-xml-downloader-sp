@@ -37,8 +37,9 @@ async function validarCertificadoDiretoArquivo(pfxFilePath, senhaCertificado) {
     const response = await axios.post(url, xmlEnvelope, {
       httpsAgent,
       headers: {
-        'Content-Type': 'application/soap+xml; charset=utf-8',
+        'Content-Type': 'text/xml; charset=utf-8', // SOAP 1.1
         'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeStatusServico4/nfeStatusServicoNF',
+
       },
       timeout: 15000,
     });
