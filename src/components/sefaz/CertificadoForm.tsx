@@ -113,7 +113,7 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
 
       // Sem token no header — ajuste aqui se a API exigir autenticação
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/api/certificados?ativo=true`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://xmlprodownloader.com.br'}/api/certificados?ativo=true`,
         {
           method: 'POST',
           headers: {

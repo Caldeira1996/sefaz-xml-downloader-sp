@@ -21,7 +21,7 @@ export const StatusConectividade = () => {
   const [servidorOnline, setServidorOnline] = useState(false);
   const { toast } = useToast();
 
- const backendBaseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br';
+ const backendBaseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://xmlprodownloader.com.br';
 
   const verificarServidorBackend = async () => {
     try {

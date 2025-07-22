@@ -38,7 +38,7 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
 
   const carregarCertificados = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/api/certificados?ativo=true`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://xmlprodownloader.com.br'}/api/certificados?ativo=true`, {
         headers: {
           'Content-Type': 'application/json',
           // REMOVIDO Authorization
@@ -101,7 +101,7 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
         ...(dataFim && { dataFim: dataFim.toISOString().split('T')[0] }),
       };
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/api/sefaz/consulta`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://xmlprodownloader.com.br'}/api/sefaz/consulta`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
