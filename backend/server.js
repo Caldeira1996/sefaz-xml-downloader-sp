@@ -4,7 +4,6 @@ const cors = require('cors');
 const fs = require('fs');
 
 const uploadCertRouter = require('./routes/upload-cert');
-const authRouter = require('./routes/auth');
 const sefazConsultaRoutes = require('./routes/sefaz-consulta');
 const certificadosRoutes = require('./routes/certificados'); // se existir
 
@@ -33,7 +32,6 @@ app.use(cors({
 app.use(express.json());
 
 // Rotas
-app.use('/api/auth', authRouter);
 app.use('/', uploadCertRouter);
 app.use('/api/sefaz', sefazConsultaRoutes);
 app.use('/api/certificados', certificadosRoutes);
