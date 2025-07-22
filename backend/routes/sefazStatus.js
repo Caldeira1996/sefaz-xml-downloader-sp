@@ -13,25 +13,25 @@ router.get('/', (req, res) => {
   });
 });
 
-// POST /api/status — Consulta status REAL da SEFAZ SP usando o certificado
+// POST /api/status — Consulta status REAL da SEFAZ SP usando o certificado principal do banco
 router.post('/', async (req, res) => {
   try {
-    // ambiente pode ser 'producao' ou 'homologacao'
+    // Ambiente pode ser 'producao' ou 'homologacao'
     const ambiente = req.body.ambiente || 'producao';
 
-    // Pegue o principal da sua empresa (ajuste a função se necessário)
+    // Busca o principal da empresa
     const certificado = await buscarCertificadoPrincipal();
 
-    if (!certificado || !certificado.certificadoBuffer || !certificado.senhaCertificado) {
+    // Converte base64 do banco para Buffer e pega a senha
+    const buffer = Buffer.from(certificado.certificado_base64, 'base64');
+    const senha = certificado.senha_certificado;
+
+    if (!buffer || !senha) {
       return res.status(404).json({ success: false, error: 'Nenhum certificado válido cadastrado.' });
     }
 
-    // Faz a consulta real na SEFAZ SP
-    const resultado = await consultarStatusSefaz(
-      certificado.certificadoBuffer,
-      certificado.senhaCertificado,
-      ambiente
-    );
+    // Consulta real na SEFAZ SP
+    const resultado = await consultarStatusSefaz(buffer, senha, ambiente);
 
     res.json({
       success: resultado.sucesso,
