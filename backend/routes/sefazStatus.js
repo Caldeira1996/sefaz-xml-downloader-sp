@@ -16,22 +16,23 @@ router.get('/', (req, res) => {
 // POST /api/status — Consulta status REAL da SEFAZ SP usando o certificado principal do banco
 router.post('/', async (req, res) => {
   try {
-    // Ambiente pode ser 'producao' ou 'homologacao'
     const ambiente = req.body.ambiente || 'producao';
-
-    // Busca o principal da empresa
     const certificado = await buscarCertificadoPrincipal();
 
-    // Converte base64 do banco para Buffer e pega a senha
-    const buffer = Buffer.from(certificado.certificado_base64, 'base64');
-    const senha = certificado.senha_certificado;
-
-    if (!buffer || !senha) {
+    if (!certificado || !certificado.certificado_base64 || !certificado.senha_certificado) {
       return res.status(404).json({ success: false, error: 'Nenhum certificado válido cadastrado.' });
     }
 
-    // Consulta real na SEFAZ SP
-    const resultado = await consultarStatusSefaz(buffer, senha, ambiente);
+    // Buffer do certificado (se vier como base64 string do banco)
+    const certificadoBuffer = Buffer.from(certificado.certificado_base64, 'base64');
+    const senhaCertificado = certificado.senha_certificado;
+
+    // Faz a consulta real na SEFAZ SP
+    const resultado = await consultarStatusSefaz(
+      certificadoBuffer,
+      senhaCertificado,
+      ambiente
+    );
 
     res.json({
       success: resultado.sucesso,
@@ -40,8 +41,10 @@ router.post('/', async (req, res) => {
       motivo: resultado.motivo,
       timestamp: new Date().toISOString(),
       raw: resultado.raw,
+      error: resultado.error // <- coloque isso pra passar o erro se tiver!
     });
   } catch (error) {
+    console.error('Erro /api/status:', error);
     res.status(500).json({
       success: false,
       error: error.message,
