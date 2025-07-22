@@ -9,7 +9,6 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/components/auth/AuthProvider';
 import { StatusConectividade } from './StatusConectividade';
 import { AlertCircle, CheckCircle, Info, Calendar as CalendarIcon, ShieldCheck, Server } from 'lucide-react';
 import { format } from 'date-fns';
@@ -32,20 +31,17 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
   const [loading, setLoading] = useState(false);
   const [ultimoResultado, setUltimoResultado] = useState<any>(null);
   const { toast } = useToast();
-  const { user, session } = useAuth();
 
   useEffect(() => {
-    if (user) {
-      carregarCertificados();
-    }
-  }, [user]);
+    carregarCertificados();
+  }, []);
 
   const carregarCertificados = async () => {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados?ativo=true`, {
         headers: {
-          'Authorization': `Bearer ${user?.access_token || ''}`,
           'Content-Type': 'application/json',
+          // REMOVIDO Authorization
         },
       });
 
@@ -56,7 +52,6 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
 
       const data: Certificado[] = await res.json();
 
-      // Ordenar: principal primeiro, depois por data criação descendente (supondo que backend já ordene)
       data.sort((a, b) => {
         if (a.is_principal === b.is_principal) {
           return 0;
@@ -66,7 +61,6 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
 
       setCertificados(data);
 
-      // Auto-selecionar principal se não tiver seleção
       const certificadoPrincipal = data.find(cert => cert.is_principal);
       if (certificadoPrincipal && !certificadoSelecionado) {
         setCertificadoSelecionado(certificadoPrincipal.id);
@@ -90,14 +84,7 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
       return;
     }
 
-    if (!session) {
-      toast({
-        title: "Sessão expirada",
-        description: "Faça login novamente",
-        variant: "destructive",
-      });
-      return;
-    }
+    // REMOVIDO verificação de sessão (sem autenticação)
 
     setLoading(true);
     setUltimoResultado(null);
@@ -118,7 +105,7 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user?.access_token || ''}`,
+          // REMOVIDO Authorization
         },
         body: JSON.stringify(requestBody),
       });
@@ -178,8 +165,8 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
   const cnpjDiferente =
     certificadoSelecionadoObj &&
     cnpjConsulta.replace(/\D/g, '') !== certificadoSelecionadoObj.cnpj.replace(/\D/g, '');
-    
-return (
+
+  return (
     <div className="space-y-4">
       {/* Componente de Status de Conectividade */}
       <StatusConectividade />
@@ -332,7 +319,7 @@ return (
             >
               {loading ? 'Consultando...' : 'Consultar Manifestações'}
             </Button>
-            
+
             <Button
               onClick={() => handleConsulta('download_nfe')}
               disabled={loading}
@@ -389,7 +376,7 @@ return (
                 )}
               </div>
             )}
-            
+
             {/* Informações de diagnóstico */}
             {ultimoResultado.diagnostico && (
               <details className="mt-4">
@@ -412,4 +399,3 @@ return (
     </div>
   );
 };
-

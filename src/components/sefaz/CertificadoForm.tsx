@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/components/auth/AuthProvider';
 import { encryptPassword } from '@/utils/encryption';
 import { validateCnpj, formatCnpj, sanitizeInput } from '@/utils/cnpjValidation';
 
@@ -19,7 +18,6 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const [ambiente, setAmbiente] = useState<'producao' | 'homologacao'>('homologacao');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { user, token } = useAuth();
 
   const validateCertificateFile = (file: File): boolean => {
     const validExtensions = ['.p12', '.pfx'];
@@ -55,15 +53,6 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!user || !token) {
-      toast({
-        title: "Usuário não autenticado",
-        description: "Por favor, faça login para continuar.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     if (!certificadoFile) {
       toast({
@@ -122,21 +111,24 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
       reader.readAsDataURL(certificadoFile);
       const certificadoBase64 = await base64Promise;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          user_id: user.id,
-          nome: sanitizedNome,
-          cnpj: sanitizedCnpj,
-          certificado_base64: certificadoBase64,
-          senha_certificado: encryptedPassword,
-          ambiente,
-        }),
-      });
+      // Sem token no header — ajuste aqui se a API exigir autenticação
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            // Removi user_id pois sem auth pode não fazer sentido
+            nome: sanitizedNome,
+            cnpj: sanitizedCnpj,
+            certificado_base64: certificadoBase64,
+            senha_certificado: encryptedPassword,
+            ambiente,
+          }),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -168,7 +160,6 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
       if (fileInput) fileInput.value = '';
 
       onSuccess();
-
     } catch (error: any) {
       console.error('Erro ao salvar certificado:', error);
       toast({
@@ -186,7 +177,7 @@ export const CertificadoForm = ({ onSuccess }: { onSuccess: () => void }) => {
     setCnpj(formatted);
   };
 
-return (
+  return (
     <Card>
       <CardHeader>
         <CardTitle>Adicionar Certificado Digital</CardTitle>

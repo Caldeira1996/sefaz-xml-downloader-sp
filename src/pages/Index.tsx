@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, LogOut, Search, Settings, List, Plus } from "lucide-react";
+import { FileText, Search, Settings, List, Plus } from "lucide-react";
 
 import { ConsultaForm } from "@/components/sefaz/ConsultaForm";
 import { CertificadosList } from "@/components/sefaz/CertificadosList";
@@ -11,8 +10,6 @@ import { CertificadoForm } from "@/components/sefaz/CertificadoForm";
 import { XmlsList } from "@/components/sefaz/XmlsList";
 
 export default function Index() {
-  const { user, loading, signOut } = useAuth();
-
   const [certificadosTab, setCertificadosTab] = useState<"listar" | "adicionar">("listar");
   const [refreshCertificados, setRefreshCertificados] = useState(false);
   const [refreshXmls, setRefreshXmls] = useState(false);
@@ -37,10 +34,6 @@ export default function Index() {
     setTimeout(() => setRefreshCertificados(false), 100);
   };
 
-  if (loading) {
-    return <div className="p-8 text-center">Carregando...</div>;
-  }
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -51,11 +44,7 @@ export default function Index() {
             <h1 className="text-xl font-bold">XML PRO - SEFAZ SP</h1>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">{user?.email}</span>
-            <Button variant="outline" size="sm" onClick={signOut}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Sair
-            </Button>
+            {/* Removido usuário e botão sair */}
           </div>
         </div>
       </header>

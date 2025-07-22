@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { useAuth } from './AuthProvider';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
 export const LoginForm = () => {
-  const { signIn } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
 
   const [email, setEmail] = useState('');
@@ -43,16 +41,16 @@ export const LoginForm = () => {
     setLoading(true);
 
     try {
-      let token;
       if (isSignUp) {
-        const response = await fakeApiSignUp(email, password);
-        token = response.token;
+        await fakeApiSignUp(email, password);
         alert('Cadastro realizado com sucesso!');
       } else {
-        const response = await fakeApiLogin(email, password);
-        token = response.token;
+        await fakeApiLogin(email, password);
+        alert('Login realizado com sucesso!');
       }
-      signIn(email, token);
+      // Aqui você pode fazer algo após login/cadastro, tipo resetar formulário
+      setEmail('');
+      setPassword('');
     } catch (error: any) {
       alert(error.message);
     } finally {

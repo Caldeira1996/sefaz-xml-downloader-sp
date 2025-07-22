@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/components/auth/AuthProvider';
 import { Trash2, Star, ShieldCheck } from 'lucide-react';
 import { formatCnpj } from '@/utils/cnpjValidation';
 
@@ -22,17 +21,11 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
   const [certificados, setCertificados] = useState<Certificado[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { user } = useAuth();
 
   useEffect(() => {
-    if (user) {
-      carregarCertificados();
-    } else {
-      setCertificados([]);
-      setLoading(false);
-    }
+    carregarCertificados();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, shouldRefresh]);
+  }, [shouldRefresh]);
 
   const carregarCertificados = async () => {
     setLoading(true);
@@ -41,8 +34,8 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
         `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados`,
         {
           headers: {
-            Authorization: `Bearer ${user?.access_token || ''}`,
             'Content-Type': 'application/json',
+            // sem Authorization pois não há autenticação
           },
         }
       );
@@ -75,15 +68,15 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
     }
   };
 
+  // Marcar como principal - aqui provavelmente API requer auth,
+  // se não houver, talvez não funcione sem token
   const marcarComoPrincipal = async (certificadoId: string) => {
-    if (!user) return;
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br'}/certificados/${certificadoId}/principal`,
         {
           method: 'PATCH',
           headers: {
-            Authorization: `Bearer ${user.access_token}`,
             'Content-Type': 'application/json',
           },
         }
@@ -107,8 +100,6 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
   };
 
   const excluirCertificado = async (certificadoId: string, nomeCertificado: string) => {
-    if (!user) return;
-
     if (!confirm(`Tem certeza que deseja excluir o certificado "${nomeCertificado}"?`)) {
       return;
     }
@@ -119,7 +110,6 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
         {
           method: 'DELETE',
           headers: {
-            Authorization: `Bearer ${user.access_token}`,
             'Content-Type': 'application/json',
           },
         }
@@ -161,7 +151,7 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
     );
   }
 
- return (
+  return (
     <Card>
       <CardHeader>
         <CardTitle>Certificados Digitais</CardTitle>
@@ -245,4 +235,3 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
     </Card>
   );
 };
-

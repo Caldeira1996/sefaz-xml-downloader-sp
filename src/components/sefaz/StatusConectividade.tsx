@@ -3,10 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/components/auth/AuthProvider';
 import { CheckCircle, XCircle, Loader2, RefreshCw, Wifi, WifiOff, Server, AlertTriangle } from 'lucide-react';
-
-const { user, token, session } = useAuth();
 
 interface StatusConectividade {
   conectado: boolean;
@@ -23,9 +20,7 @@ export const StatusConectividade = () => {
   const [verificando, setVerificando] = useState(false);
   const [servidorOnline, setServidorOnline] = useState(false);
   const { toast } = useToast();
-  const { user, session } = useAuth();
 
-  // Ajuste a URL base do seu backend aqui ou use variável ambiente
   const backendBaseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br';
 
   const verificarServidorBackend = async () => {
@@ -47,7 +42,6 @@ export const StatusConectividade = () => {
       console.error('❌ Servidor backend offline:', error);
       setServidorOnline(false);
 
-      // Classificar o tipo do erro para diagnóstico
       let errorType = 'CONNECTION_ERROR';
       const msg = error.message || '';
       if (msg.includes('net::ERR_CERT') || msg.includes('SSL')) {
@@ -67,14 +61,11 @@ export const StatusConectividade = () => {
   };
 
   const verificarConectividade = async () => {
-    if (!user || !session) return;
-
     setVerificando(true);
 
     try {
       console.log('🔍 Verificando conectividade com SEFAZ via backend...');
 
-      // Verificar backend online
       const backendResult = await verificarServidorBackend();
 
       if (!backendResult.success) {
@@ -118,12 +109,11 @@ export const StatusConectividade = () => {
         return;
       }
 
-      // Backend está online, verificar SEFAZ
+      // Backend online, consultar status SEFAZ (sem token)
       const response = await fetch(`${backendBaseUrl}/api/sefaz/status`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
         },
         body: JSON.stringify({ ambiente: 'producao' }),
       });
@@ -177,21 +167,17 @@ export const StatusConectividade = () => {
     }
   };
 
-  // Verificar ao montar o componente e quando usuário/session mudar
+  // Verificar ao montar o componente
   useEffect(() => {
-    if (user && session) {
-      verificarConectividade();
-    }
-  }, [user, session]);
-
-  if (!user) return null;
+    verificarConectividade();
+  }, []);
 
   const backendUrl = backendBaseUrl;
   const isHttps = backendUrl.startsWith('https');
   const hostname = window.location.hostname;
   const isLovable = hostname.endsWith('.lovableproject.com') || hostname.endsWith('.lovable.app');
 
-return (
+  return (
     <Card className="mb-4">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
@@ -217,10 +203,10 @@ return (
             ) : (
               <XCircle className="h-5 w-5 text-red-500" />
             )}
-            
+
             <div>
               <div className="flex items-center gap-2">
-                <Badge 
+                <Badge
                   variant={status?.conectado ? "default" : "destructive"}
                   className="text-xs"
                 >
@@ -231,20 +217,20 @@ return (
                     {status.ambiente}
                   </span>
                 )}
-                <Badge 
+                <Badge
                   variant={servidorOnline ? "default" : "destructive"}
                   className="text-xs"
                 >
                   Backend: {servidorOnline ? 'Online' : 'Offline'}
                 </Badge>
               </div>
-              
+
               {status && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Última verificação: {status.ultimaVerificacao}
+                  Última verificação: {status.ultimaVerificacao} | UTC: {new Date().toISOString()}
                 </p>
               )}
-              
+
               {status?.detalhes && (
                 <p className={`text-xs mt-1 ${status.conectado ? 'text-green-600' : 'text-red-600'}`}>
                   {status.detalhes}
@@ -271,16 +257,15 @@ return (
           </Button>
         </div>
 
-        {/* Informações de diagnóstico */}
         {!servidorOnline && status && (
           <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-xs text-red-700">
             <div className="font-semibold mb-2">🔍 Diagnóstico:</div>
-            
+
             <div className="space-y-1">
               <div><strong>🌐 Ambiente:</strong> {isLovable ? 'Lovable' : 'Produção/Local'}</div>
               <div><strong>📡 Protocolo:</strong> {isHttps ? 'HTTPS' : 'HTTP'}</div>
               <div><strong>🎯 URL Testada:</strong> {status.urlUsada || backendUrl}</div>
-              
+
               {status.errorType === 'TIMEOUT_ERROR' && (
                 <div className="mt-2 p-2 bg-orange-100 border border-orange-300 rounded">
                   <div><strong>⏱️ Erro de Timeout</strong></div>
@@ -290,7 +275,7 @@ return (
                   <div>• Configure nginx para proxy reverso na porta 443</div>
                 </div>
               )}
-              
+
               {status.errorType === 'SSL_ERROR' && (
                 <div className="mt-2 p-2 bg-orange-100 border border-orange-300 rounded">
                   <div><strong>⚠️ Certificado SSL Inválido</strong></div>
@@ -298,12 +283,12 @@ return (
                   <div>• Configure nginx com SSL adequado</div>
                 </div>
               )}
-              
+
               {status.errorType === 'NETWORK_ERROR' && (
                 <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded">
                   <div><strong>📡 Erro de Rede</strong></div>
                   <div>• Verifique se o servidor está rodando</div>
-                  <div>• Comando: <code>npm run start:https</code></div>
+                  <div>• Verifique firewall: <code>sudo ufw status</code></div>
                   <div>• Teste local: <code>curl -k https://localhost:3002/health</code></div>
                 </div>
               )}
@@ -314,4 +299,3 @@ return (
     </Card>
   );
 };
-
