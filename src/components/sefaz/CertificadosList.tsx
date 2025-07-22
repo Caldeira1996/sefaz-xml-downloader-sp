@@ -32,7 +32,7 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
   const carregarCertificados = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${baseURL}/api/certificados?ativo=true`, {
+      const res = await fetch(`${baseURL}/api/certificados`, {
         headers: {
           'Content-Type': 'application/json',
         },
