@@ -10,7 +10,7 @@ async function validarCertificadoDiretoArquivo(pfxFilePath, senhaCertificado) {
     const httpsAgent = new https.Agent({
       pfx: certificadoBuffer,
       passphrase: senhaCertificado,
-      rejectUnauthorized: false, // Coloque true para produção
+      rejectUnauthorized: true, // Coloque true para produção
     });
 
     // Envelope SOAP 1.2 com xmlDadosMsg
