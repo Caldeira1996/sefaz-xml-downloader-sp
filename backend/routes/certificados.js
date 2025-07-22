@@ -1,5 +1,5 @@
 const express = require('express');
-const { buscarCertificado, listarCertificadosAtivos } = require('../services/certificados');
+const { salvarCertificado, buscarCertificado, listarCertificadosAtivos } = require('../services/certificados');
 
 const router = express.Router();
 
