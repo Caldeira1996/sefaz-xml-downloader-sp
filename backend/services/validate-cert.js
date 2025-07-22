@@ -5,33 +5,37 @@ const axios = require('axios');
 const path  = require('path');
 
 async function validarCertificado(pfxPath, senha) {
-  /* --- agente TLS com o .pfx e a cadeia ICP‑Brasil --- */
   const httpsAgent = new https.Agent({
     pfx: fs.readFileSync(pfxPath),
     passphrase: senha,
     ca: fs.readFileSync(path.join(__dirname, '../certs/ca-chain.pem')),
-    rejectUnauthorized: true,           // deixe true em produção
+    rejectUnauthorized: true,
   });
 
-  /* --- envelope SOAP 1.2 (namespaces & tags corretas) --- */
+  /* -------- envelope SOAP 1.2 completo -------- */
   const xmlEnvelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"
-                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                 xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+                 xmlns:ws="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
+  <soap12:Header>
+    <ws:nfeCabecMsg>
+      <cUF>35</cUF>
+      <versaoDados>4.00</versaoDados>
+    </ws:nfeCabecMsg>
+  </soap12:Header>
+
   <soap12:Body>
-    <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
-      <nfeDadosMsg><![CDATA[
+    <ws:nfeStatusServicoNF>
+      <ws:nfeDadosMsg>
         <consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
-          <tpAmb>1</tpAmb>        <!-- 1 = produção | 2 = homologação -->
-          <cUF>35</cUF>           <!-- 35 = São Paulo -->
+          <tpAmb>1</tpAmb>
+          <cUF>35</cUF>
           <xServ>STATUS</xServ>
         </consStatServ>
-      ]]></nfeDadosMsg>
-    </nfeStatusServicoNF>
+      </ws:nfeDadosMsg>
+    </ws:nfeStatusServicoNF>
   </soap12:Body>
 </soap12:Envelope>`;
 
-  /* --- cabeçalho SOAP 1.2: action vai dentro do Content‑Type --- */
   const headers = {
     'Content-Type':
       'application/soap+xml; charset=utf-8; ' +
@@ -52,13 +56,12 @@ async function validarCertificado(pfxPath, senha) {
   }
 }
 
-/* --- teste rápido --- */
+/* ---- teste ---- */
 (async () => {
   const pfx = path.join(
     __dirname,
     '../certificates',
     '52.055.075 VANUZIA BARBOSA DE JESUS_52055075000173.pfx'
   );
-  const resultado = await validarCertificado(pfx, '123456');
-  console.log(resultado);
+  console.log(await validarCertificado(pfx, '123456'));
 })();
