@@ -12,34 +12,34 @@ async function validarCertificado(pfxPath, senha) {
     rejectUnauthorized: true,
   });
 
-  /* -------- envelope SOAP 1.2 completo -------- */
+  /* ---------- envelope SOAP 1.2 ---------- */
   const xmlEnvelope = `<?xml version="1.0" encoding="utf-8"?>
-<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"
-                 xmlns:ws="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
+<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
   <soap12:Header>
-    <ws:nfeCabecMsg>
+    <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
       <cUF>35</cUF>
       <versaoDados>4.00</versaoDados>
-    </ws:nfeCabecMsg>
+    </nfeCabecMsg>
   </soap12:Header>
 
   <soap12:Body>
-    <ws:nfeStatusServicoNF>
-      <ws:nfeDadosMsg>
-        <consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
-          <tpAmb>1</tpAmb>
-          <cUF>35</cUF>
-          <xServ>STATUS</xServ>
-        </consStatServ>
-      </ws:nfeDadosMsg>
-    </ws:nfeStatusServicoNF>
+    <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
+      <nfeDadosMsg>
+        <![CDATA[
+          <consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+            <tpAmb>1</tpAmb>
+            <cUF>35</cUF>
+            <xServ>STATUS</xServ>
+          </consStatServ>
+        ]]>
+      </nfeDadosMsg>
+    </nfeStatusServicoNF>
   </soap12:Body>
 </soap12:Envelope>`;
 
   const headers = {
     'Content-Type':
-      'application/soap+xml; charset=utf-8; ' +
-      'action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"',
+      'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"',
   };
 
   try {
@@ -56,7 +56,7 @@ async function validarCertificado(pfxPath, senha) {
   }
 }
 
-/* ---- teste ---- */
+/* ------- teste rápido ------- */
 (async () => {
   const pfx = path.join(
     __dirname,
