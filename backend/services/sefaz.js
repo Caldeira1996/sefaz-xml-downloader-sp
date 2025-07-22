@@ -11,59 +11,69 @@ function createAgentFromBuffer(bufferPfx, senha) {
   return new https.Agent({
     pfx: bufferPfx,
     passphrase: senha,
-    rejectUnauthorized: false,
+    rejectUnauthorized: true,
   });
 }
 
-const createStatusEnvelope = () => `<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-  <soap:Body>
-    <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
-      <nfeDadosMsg>
-        <consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
-          <tpAmb>2</tpAmb>
-          <cUF>35</cUF>
-          <xServ>STATUS</xServ>
-        </consStatServ>
-      </nfeDadosMsg>
-    </nfeStatusServicoNF>
-  </soap:Body>
-</soap:Envelope>`;
+/**
+ * Gera o XML base de consulta da Distribuição DFe
+ * @param {object} params
+ * @param {number} params.tpAmb - Ambiente (1=produção, 2=homologação)
+ * @param {string} params.cUFAutor - Código UF, exemplo '35' para SP
+ * @param {string} params.CNPJ - CNPJ da empresa consultante (sem formatação)
+ * @param {string} params.distNSU - NSU inicial (40 zeros para consultar tudo)
+ * @returns {string} XML para ser assinado
+ */
+function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, distNSU }) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
+  <tpAmb>${tpAmb}</tpAmb>
+  <cUFAutor>${cUFAutor}</cUFAutor>
+  <CNPJ>${CNPJ}</CNPJ>
+  <distNSU>${distNSU}</distNSU>
+</distDFeInt>`;
+}
 
-async function consultarNFe({ certificadoBuffer, senhaCertificado, cnpjConsultado, tipoConsulta, ambiente }) {
-  const httpsAgent = new https.Agent({
-    pfx: certificadoBuffer,
-    passphrase: senhaCertificado,
-    rejectUnauthorized: false,
-  });
+/**
+ * Envia o XML assinado no envelope SOAP para o serviço NFeDistribuicaoDFe
+ * @param {Buffer} certificadoBuffer - Buffer do PFX
+ * @param {string} senhaCertificado - Senha do certificado
+ * @param {string} xmlAssinado - XML da consulta já assinado (com assinatura XML)
+ * @param {string} ambiente - 'producao' ou 'homologacao'
+ */
+async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, xmlAssinado, ambiente }) {
+  const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
 
   const url = ambiente === 'producao'
-    ? 'https://nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx'
-    : 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx';
+    ? 'https://www.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx'
+    : 'https://homologacao.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 
-  const xmlEnvelope = createStatusEnvelope();
+  // Monta o envelope SOAP com o XML assinado dentro de CDATA
+  const envelopeSoap = `
+<soapenv:Envelope xmlns:soapenv="http://www.w3.org/2003/05/soap-envelope"
+                  xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <nfe:nfeDadosMsg><![CDATA[
+      ${xmlAssinado}
+    ]]></nfe:nfeDadosMsg>
+  </soapenv:Body>
+</soapenv:Envelope>`;
 
-  try {
-    const response = await axios.post(url, xmlEnvelope, {
-      httpsAgent,
-      headers: {
-        'Content-Type': 'text/xml; charset=utf-8',
-        'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF',
-      },
-      timeout: 15000,
-    });
+  const response = await axios.post(url, envelopeSoap, {
+    httpsAgent,
+    headers: {
+      'Content-Type': 'application/soap+xml; charset=utf-8',
+      'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse',
+    },
+    timeout: 15000,
+  });
 
-    return response.data;
-  } catch (error) {
-    console.error('Erro na consulta SEFAZ:', error);
-    throw error;
-  }
+  return response.data;
 }
 
 module.exports = {
   createAgentFromBuffer,
-  createStatusEnvelope,
-  consultarNFe,
+  createDistDFeIntXML,
+  consultarDistribuicaoDFe,
 };

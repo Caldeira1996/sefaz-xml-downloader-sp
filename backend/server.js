@@ -35,6 +35,7 @@ app.use(express.json());
 // Rotas
 app.use('/', uploadCertRouter);
 app.use('/api/sefaz', sefazConsultaRoutes);
+app.use('/api/sefaz', sefazStatusRouter);
 //app.use('/api/certificados', certificadosRoutes);
 
 
