@@ -4,6 +4,18 @@ const https = require('https');
 const axios = require('axios');
 const path  = require('path');
 
+// INTERCEPTOR para ver a requisição antes de ir p/ rede
+axios.interceptors.request.use(conf => {
+  if (conf.url.includes('NfeStatusServico4.asmx')) {
+    console.log('\n--- REQUISIÇÃO ENVIADA ---');
+    console.log('URL :', conf.url);
+    console.log('HEADERS :', conf.headers);
+    // se quiser, mostre só o início do body:
+    console.log('BODY(100):', conf.data.slice(0, 100), '...\n');
+  }
+  return conf;
+});
+
 async function validarCertificado(pfxPath, senha) {
   const httpsAgent = new https.Agent({
     pfx: fs.readFileSync(pfxPath),
