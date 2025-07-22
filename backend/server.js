@@ -7,7 +7,7 @@ const fs = require('fs');
 const uploadCertRouter = require('./routes/upload-cert');
 const sefazConsultaRoutes = require('./routes/sefaz-consulta');
 const certificadosRoutes = require('./routes/certificados');
-const sefazStatusRouter = require('./routes/sefaz-status');
+const sefazStatusRouter = require('./routes/sefazStatus');
 
 const app = express();
 
