@@ -104,14 +104,14 @@ async function consultarStatusSefaz(
 
   try {
     const { data: xmlResposta } = await axios.post(url, envelopeSoap, {
-      httpsAgent,
-      headers: {
-        'Content-Type': 'text/xml; charset=utf-8',
-        'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NfeStatusServico4/nfeStatusServicoNF"'
-      },
-      timeout: 15000
-    });
-
+  httpsAgent,
+  headers: {
+    'Content-Type': 'text/xml; charset=utf-8',
+    // sem aspas
+    'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeStatusServico4/nfeStatusServicoNF'
+  },
+  timeout: 15000
+});
     const cStat   = (xmlResposta.match(/<cStat>(\d+)<\/cStat>/)   || [])[1] || null;
     const xMotivo = (xmlResposta.match(/<xMotivo>(.+?)<\/xMotivo>/)|| [])[1] || null;
     const sucesso = ['107', '108', '109', '111'].includes(cStat);
