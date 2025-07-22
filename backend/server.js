@@ -6,6 +6,7 @@ const fs = require('fs');
 const uploadCertRouter = require('./routes/upload-cert');
 const sefazConsultaRoutes = require('./routes/sefaz-consulta');
 const certificadosRoutes = require('./routes/certificados'); // se existir
+const sefazStatusRouter = require('./routes/sefaz-status');
 
 const app = express();
 
@@ -14,19 +15,22 @@ const allowedOrigins = [
   'https://xmlprodownloader.com.br',
   'http://localhost:5173',
   'https://api.xmlprodownloader.com.br',
+  'http://56.124.22.200:3002',
 ];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // req sem origin (ex curl/postman)
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, origin); // Retorna o origin da requisição
-    }
-    return callback(new Error('Origem não autorizada pelo CORS'));
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-}));
+app.use(cors());
+
+// app.use(cors({
+//   origin: function (origin, callback) {
+//     if (!origin) return callback(null, true); // req sem origin (ex curl/postman)
+//     if (allowedOrigins.includes(origin)) {
+//       return callback(null, origin); // Retorna o origin da requisição
+//     }
+//     return callback(new Error('Origem não autorizada pelo CORS'));
+//   },
+//   credentials: true,
+//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+// }));
 
 
 // Habilita parsing JSON para ler req.body nas rotas
