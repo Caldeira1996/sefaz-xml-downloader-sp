@@ -12,22 +12,22 @@ const app = express();
 const allowedOrigins = [
   'https://www.xmlprodownloader.com.br',
   'https://xmlprodownloader.com.br',
-  'http://localhost:5173', // para dev local
+  'http://localhost:5173',
   'https://api.xmlprodownloader.com.br',
 ];
 
-// Configura CORS antes das rotas
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // curl/postman sem origin
+    if (!origin) return callback(null, true); // req sem origin (ex curl/postman)
     if (allowedOrigins.includes(origin)) {
-      return callback(null, origin); // <-- aqui, PASSAR a origem, não `true`
+      return callback(null, origin); // Retorna o origin da requisição
     }
     return callback(new Error('Origem não autorizada pelo CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
+
 
 // Habilita parsing JSON para ler req.body nas rotas
 app.use(express.json());

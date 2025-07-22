@@ -3,6 +3,21 @@ const { buscarCertificado, listarCertificadosAtivos } = require('../services/cer
 
 const router = express.Router();
 
+router.post('/', async (req, res) => {
+  try {
+    // Extrair dados do req.body
+    const { nome, cnpj, certificado_base64, senha_certificado, ambiente } = req.body;
+
+    // Aqui você salva o certificado no banco ou disco conforme sua lógica
+    const certificadoSalvo = await salvarCertificado({ nome, cnpj, certificado_base64, senha_certificado, ambiente });
+
+    res.status(201).json({ sucesso: true, certificado: certificadoSalvo });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ sucesso: false, erro: err.message });
+  }
+});
+
 // Listar certificados ativos - rota pública
 router.get('/', async (req, res) => {
   try {

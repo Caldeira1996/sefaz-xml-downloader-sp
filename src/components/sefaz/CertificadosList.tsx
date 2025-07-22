@@ -22,6 +22,8 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  const baseURL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://xmlprodownloader.com.br';
+
   useEffect(() => {
     carregarCertificados();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -30,22 +32,19 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
   const carregarCertificados = async () => {
     setLoading(true);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://xmlprodownloader.com.br'}/api/certificados?ativo=true`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            // sem Authorization pois não há autenticação
-          },
-        }
-      );
+      const res = await fetch(`${baseURL}/api/certificados?ativo=true`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const json = await res.json();
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Erro ao carregar certificados');
+        throw new Error(json.message || 'Erro ao carregar certificados');
       }
 
-      const data: Certificado[] = await res.json();
+      const data: Certificado[] = json.certificados;
 
       // Ordena por is_principal (desc) e created_at (desc)
       data.sort((a, b) => {
@@ -59,7 +58,7 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
     } catch (error: any) {
       toast({
         title: 'Erro ao carregar certificados',
-        description: error.message,
+        description: error.message || 'Erro desconhecido',
         variant: 'destructive',
       });
       setCertificados([]);
@@ -68,23 +67,21 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
     }
   };
 
-  // Marcar como principal - aqui provavelmente API requer auth,
-  // se não houver, talvez não funcione sem token
   const marcarComoPrincipal = async (certificadoId: string) => {
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://xmlprodownloader.com.br'}/api/certificados?ativo=true${certificadoId}/principal`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      const res = await fetch(`${baseURL}/api/certificados/${certificadoId}/principal`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const json = await res.json();
+
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Erro ao atualizar certificado principal');
+        throw new Error(json.message || 'Erro ao atualizar certificado principal');
       }
+
       toast({
         title: 'Certificado principal atualizado',
         description: 'O certificado foi marcado como principal com sucesso.',
@@ -93,7 +90,7 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
     } catch (error: any) {
       toast({
         title: 'Erro ao marcar certificado como principal',
-        description: error.message,
+        description: error.message || 'Erro desconhecido',
         variant: 'destructive',
       });
     }
@@ -105,19 +102,17 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
     }
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://xmlprodownloader.com.br'}/api/certificados?ativo=true${certificadoId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      const res = await fetch(`${baseURL}/api/certificados/${certificadoId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const json = await res.json();
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Erro ao excluir certificado');
+        throw new Error(json.message || 'Erro ao excluir certificado');
       }
 
       toast({
@@ -129,7 +124,7 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
     } catch (error: any) {
       toast({
         title: 'Erro ao excluir certificado',
-        description: error.message,
+        description: error.message || 'Erro desconhecido',
         variant: 'destructive',
       });
     }
@@ -169,9 +164,7 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
               <div
                 key={certificado.id}
                 className={`border rounded-lg p-4 ${
-                  certificado.is_principal 
-                    ? 'border-primary bg-primary/5' 
-                    : 'border-border'
+                  certificado.is_principal ? 'border-primary bg-primary/5' : 'border-border'
                 }`}
               >
                 <div className="flex items-start justify-between">
@@ -184,7 +177,7 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
                           Principal
                         </Badge>
                       )}
-                      <Badge 
+                      <Badge
                         variant={certificado.ambiente === 'producao' ? 'destructive' : 'secondary'}
                         className="text-xs"
                       >
@@ -196,10 +189,15 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
                         </Badge>
                       )}
                     </div>
-                    
+
                     <div className="text-sm text-muted-foreground space-y-1">
-                      <p><strong>CNPJ:</strong> {formatCnpj(certificado.cnpj)}</p>
-                      <p><strong>Adicionado em:</strong> {new Date(certificado.created_at).toLocaleDateString('pt-BR')}</p>
+                      <p>
+                        <strong>CNPJ:</strong> {formatCnpj(certificado.cnpj)}
+                      </p>
+                      <p>
+                        <strong>Adicionado em:</strong>{' '}
+                        {new Date(certificado.created_at).toLocaleDateString('pt-BR')}
+                      </p>
                     </div>
                   </div>
 
@@ -215,7 +213,7 @@ export const CertificadosList = ({ shouldRefresh }: { shouldRefresh?: boolean })
                         Marcar como Principal
                       </Button>
                     )}
-                    
+
                     <Button
                       variant="outline"
                       size="sm"
