@@ -1,79 +1,86 @@
 const axios = require('axios');
 const https = require('https');
 
-/**
- * Cria um agente HTTPS a partir do buffer do certificado PFX e senha.
- * @param {Buffer} bufferPfx - Buffer do arquivo PFX
- * @param {string} senha - senha do certificado
- * @returns {https.Agent}
- */
-function createAgentFromBuffer(bufferPfx, senha) {
-  return new https.Agent({
-    pfx: bufferPfx,
-    passphrase: senha,
-    rejectUnauthorized: true,
-  });
-}
+// ... seu código existente ...
 
 /**
- * Gera o XML base de consulta da Distribuição DFe
+ * Monta o XML para consulta de status do serviço SEFAZ SP
  * @param {object} params
- * @param {number} params.tpAmb - Ambiente (1=produção, 2=homologação)
- * @param {string} params.cUFAutor - Código UF, exemplo '35' para SP
- * @param {string} params.CNPJ - CNPJ da empresa consultante (sem formatação)
- * @param {string} params.distNSU - NSU inicial (40 zeros para consultar tudo)
- * @returns {string} XML para ser assinado
+ * @param {number} params.tpAmb - Ambiente: 1 (produção) ou 2 (homologação)
+ * @param {string} params.cUF - Código UF, exemplo: '35' para SP
+ * @returns {string}
  */
-function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, distNSU }) {
+function createStatusServicoXML({ tpAmb, cUF }) {
   return `<?xml version="1.0" encoding="UTF-8"?>
-<distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
+<consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
   <tpAmb>${tpAmb}</tpAmb>
-  <cUFAutor>${cUFAutor}</cUFAutor>
-  <CNPJ>${CNPJ}</CNPJ>
-  <distNSU>${distNSU}</distNSU>
-</distDFeInt>`;
+  <cUF>${cUF}</cUF>
+  <xServ>STATUS</xServ>
+</consStatServ>`;
 }
 
 /**
- * Envia o XML assinado no envelope SOAP para o serviço NFeDistribuicaoDFe
+ * Consulta status do serviço NFe na SEFAZ
  * @param {Buffer} certificadoBuffer - Buffer do PFX
  * @param {string} senhaCertificado - Senha do certificado
- * @param {string} xmlAssinado - XML da consulta já assinado (com assinatura XML)
  * @param {string} ambiente - 'producao' ou 'homologacao'
+ * @param {string} cUF - Código da UF (ex: '35' para SP)
+ * @returns {object} Resultado do status
  */
-async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, xmlAssinado, ambiente }) {
+async function consultarStatusSefaz(certificadoBuffer, senhaCertificado, ambiente, cUF = '35') {
   const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
+  const tpAmb = ambiente === 'producao' ? '1' : '2';
 
   const url = ambiente === 'producao'
-    ? 'https://www.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx'
-    : 'https://homologacao.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
+    ? 'https://nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx'
+    : 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx';
 
-  // Monta o envelope SOAP com o XML assinado dentro de CDATA
+  const xml = createStatusServicoXML({ tpAmb, cUF });
+
   const envelopeSoap = `
-<soapenv:Envelope xmlns:soapenv="http://www.w3.org/2003/05/soap-envelope"
-                  xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
-  <soapenv:Header/>
-  <soapenv:Body>
-    <nfe:nfeDadosMsg><![CDATA[
-      ${xmlAssinado}
-    ]]></nfe:nfeDadosMsg>
-  </soapenv:Body>
-</soapenv:Envelope>`;
+<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+  <soap12:Body>
+    <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NfeStatusServico4">
+      <xmlDadosMsg><![CDATA[${xml}]]></xmlDadosMsg>
+    </nfeStatusServicoNF>
+  </soap12:Body>
+</soap12:Envelope>`;
 
-  const response = await axios.post(url, envelopeSoap, {
-    httpsAgent,
-    headers: {
-      'Content-Type': 'application/soap+xml; charset=utf-8',
-      'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse',
-    },
-    timeout: 15000,
-  });
+  try {
+    const response = await axios.post(url, envelopeSoap, {
+      httpsAgent,
+      headers: {
+        'Content-Type': 'application/soap+xml; charset=utf-8',
+        'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NfeStatusServico4/nfeStatusServicoNF',
+      },
+      timeout: 15000,
+    });
 
-  return response.data;
+    // Pega o XML de resposta como string
+    const xmlResposta = response.data;
+
+    // Regex simples só para pegar o cStat e xMotivo do XML
+    const cStat = (xmlResposta.match(/<cStat>(\d+)<\/cStat>/) || [])[1] || null;
+    const xMotivo = (xmlResposta.match(/<xMotivo>(.+?)<\/xMotivo>/) || [])[1] || null;
+
+    return {
+      sucesso: cStat === '107' || cStat === '108' || cStat === '109' || cStat === '111', // verifique os códigos de sucesso da SEFAZ
+      statusCode: cStat,
+      motivo: xMotivo,
+      raw: xmlResposta,
+    };
+  } catch (e) {
+    return {
+      sucesso: false,
+      error: e.message,
+    };
+  }
 }
 
 module.exports = {
   createAgentFromBuffer,
   createDistDFeIntXML,
   consultarDistribuicaoDFe,
+  createStatusServicoXML,
+  consultarStatusSefaz,     // <-- exportando nova função!
 };
