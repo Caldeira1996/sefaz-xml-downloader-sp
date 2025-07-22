@@ -68,6 +68,5 @@ async function buscarCertificadoPrincipal() {
 module.exports = {
   salvarCertificado,
   listarCertificadosAtivos,
-  buscarCertificado,
   buscarCertificadoPrincipal,  // <-- NÃO ESQUEÇA DE EXPORTAR!
 };
