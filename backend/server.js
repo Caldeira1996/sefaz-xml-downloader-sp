@@ -21,7 +21,7 @@ app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true); // curl/postman sem origin
     if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
+      return callback(null, origin); // <-- aqui, PASSAR a origem, não `true`
     }
     return callback(new Error('Origem não autorizada pelo CORS'));
   },
