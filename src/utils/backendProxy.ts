@@ -1,7 +1,7 @@
-const BACKEND_DOMAIN = 'xmlprodownloader.com.br';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://xmlprodownloader.com.br';
 
 export const getBackendUrl = () => {
-  return `https://${BACKEND_DOMAIN}`;
+  return BACKEND_URL;
 };
 
 export const makeBackendRequest = async (endpoint: string, options: RequestInit = {}) => {

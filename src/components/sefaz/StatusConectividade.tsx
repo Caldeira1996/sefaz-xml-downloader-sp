@@ -21,7 +21,7 @@ export const StatusConectividade = () => {
   const [servidorOnline, setServidorOnline] = useState(false);
   const { toast } = useToast();
 
-  const backendBaseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br';
+ const backendBaseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.xmlprodownloader.com.br';
 
   const verificarServidorBackend = async () => {
     try {
@@ -169,8 +169,11 @@ export const StatusConectividade = () => {
 
   // Verificar ao montar o componente
   useEffect(() => {
-    verificarConectividade();
-  }, []);
+  fetch(`${backendBaseUrl}/health`)
+    .then(res => res.json())
+    .then(data => console.log('Teste /health:', data))
+    .catch(err => console.error('Erro ao acessar backend /health:', err));
+}, []);
 
   const backendUrl = backendBaseUrl;
   const isHttps = backendUrl.startsWith('https');
