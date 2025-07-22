@@ -20,21 +20,22 @@ const allowedOrigins = [
   'http://localhost:5173',
   'https://api.xmlprodownloader.com.br',
   'http://56.124.22.200:3002',
+  'https://56.124.22.200:3002', // Adicione HTTPS também
+  'http://localhost:3000', // Para desenvolvimento local
+  'https://localhost:3000',
 ];
 
-app.use(cors());
-
-// app.use(cors({
-//   origin: function (origin, callback) {
-//     if (!origin) return callback(null, true); // req sem origin (ex curl/postman)
-//     if (allowedOrigins.includes(origin)) {
-//       return callback(null, origin); // Retorna o origin da requisição
-//     }
-//     return callback(new Error('Origem não autorizada pelo CORS'));
-//   },
-//   credentials: true,
-//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-// }));
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true); // req sem origin (ex curl/postman)
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, origin); // Retorna o origin da requisição
+    }
+    return callback(new Error('Origem não autorizada pelo CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+}));
 
 
 // Habilita parsing JSON para ler req.body nas rotas
