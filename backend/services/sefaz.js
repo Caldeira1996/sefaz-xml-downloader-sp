@@ -1,8 +1,13 @@
 const axios = require('axios');
 const https = require('https');
 
-// ... seu código existente ...
-
+function createAgentFromBuffer(bufferPfx, senha) {
+  return new https.Agent({
+    pfx: bufferPfx,
+    passphrase: senha,
+    rejectUnauthorized: true,
+  });
+}
 /**
  * Monta o XML para consulta de status do serviço SEFAZ SP
  * @param {object} params
