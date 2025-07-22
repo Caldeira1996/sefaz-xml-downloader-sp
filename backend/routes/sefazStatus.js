@@ -2,8 +2,9 @@
 const express = require('express');
 const router = express.Router();
 
-router.post('/status', (req, res) => {
-  return res.json({ success: true, message: 'Backend SEFAZ está online!' });
+app.post('/api/sefaz/status', (req, res) => {
+  res.json({ success: true, message: 'Sem autenticação por enquanto' });
 });
+
 
 module.exports = router;
