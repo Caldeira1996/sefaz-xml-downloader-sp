@@ -21,10 +21,13 @@ async function validarCertificadoDiretoArquivo(pfxFilePath, senhaCertificado) {
   <soap12:Header/>
   <soap12:Body>
     <nfe:nfeStatusServicoNF>
-      <nfe:versao>4.00</nfe:versao>
-      <nfe:tpAmb>1</nfe:tpAmb>
-      <nfe:cUF>35</nfe:cUF>
-      <nfe:xServ>STATUS</nfe:xServ>
+      <xmlDadosMsg><![CDATA[
+        <consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+          <tpAmb>1</tpAmb>
+          <cUF>35</cUF>
+          <xServ>STATUS</xServ>
+        </consStatServ>
+      ]]></xmlDadosMsg>
     </nfe:nfeStatusServicoNF>
   </soap12:Body>
 </soap12:Envelope>`;
