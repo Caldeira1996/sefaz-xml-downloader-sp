@@ -1,13 +1,18 @@
 // Dependências
 const axios = require('axios');
 const https = require('https');
+const fs = require('fs');
+const path = require('path');
 
-// 1. Já tem:
+// Carregue a cadeia de certificados (faça isso uma vez só, fora da função!)
+const ca = fs.readFileSync(path.join(__dirname, '../certs/ca-chain.pem'));
+
 function createAgentFromBuffer(bufferPfx, senha) {
-  return new https.Agent({
+  return new require('https').Agent({
     pfx: bufferPfx,
     passphrase: senha,
-    rejectUnauthorized: true,
+    ca: ca,
+    rejectUnauthorized: true, // OBRIGATÓRIO para produção!
   });
 }
 
