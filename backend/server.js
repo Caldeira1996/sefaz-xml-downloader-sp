@@ -3,7 +3,6 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const fs = require('fs');
-const sefazStatusRouter = require('./routes/sefaz-status');
 
 const uploadCertRouter = require('./routes/upload-cert');
 const sefazConsultaRoutes = require('./routes/sefaz-consulta');
