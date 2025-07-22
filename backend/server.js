@@ -10,7 +10,7 @@ const certificadosRoutes = require('./routes/certificados'); // se existir
 const app = express();
 
 const allowedOrigins = [
-  //'https://www.xmlprodownloader.com.br',
+  'https://www.xmlprodownloader.com.br',
   'https://xmlprodownloader.com.br',
   'http://localhost:5173',
   'https://api.xmlprodownloader.com.br',
