@@ -13,8 +13,8 @@ const fs     = require('fs');
 const path   = require('path');
 
 // 1) Endpoints oficiais (sobrescreva via .env se quiser)
-const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ??
-  'https://nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
+const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
+  'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL ??
   'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 
