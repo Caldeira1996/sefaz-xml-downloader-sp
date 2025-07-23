@@ -1,24 +1,24 @@
+// ──────────────────────────────────────────────────────────────
+// routes/sefaz-consulta.js
+// ──────────────────────────────────────────────────────────────
 const express = require('express');
 const { SignedXml } = require('xml-crypto');
-const { DOMParser } = require('@xmldom/xmldom');
-
-const router = express.Router();
-
 const { buscarCertificado } = require('../services/certificados');
 const {
   createDistDFeIntXML,
   consultarDistribuicaoDFe,
 } = require('../services/sefaz');
+const { pfxToPem } = require('../services/pfx-utils');   // helper já criado
 
-const { pfxToPem } = require('../services/pfx-utils');
+const router = express.Router();
 
-/* ------------------------------------------------------------------------
- * Assina o XML <distDFeInt> com chave PEM extraída do PFX
- * --------------------------------------------------------------------- */
+/* ------------------------------------------------------------------
+ * Assina <distDFeInt> com a chave PEM extraída do PFX
+ *  – usa API nova do xml‑crypto (objeto de opções)
+ * ----------------------------------------------------------------*/
 function assinarXML(xml, keyPem, certPem) {
   const sig = new SignedXml();
 
-  // algoritmo RSA‑SHA1 (aceito pela SEFAZ)
   sig.signatureAlgorithm = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1';
 
   sig.addReference("//*[local-name(.)='distDFeInt']", {
@@ -26,10 +26,8 @@ function assinarXML(xml, keyPem, certPem) {
     digestAlgorithm: 'http://www.w3.org/2000/09/xmldsig#sha1'
   });
 
-  // chave privada
   sig.signingKey = keyPem;
 
-  // inclui o certificado em <X509Certificate>
   sig.keyInfoProvider = {
     getKeyInfo: () =>
       `<X509Data><X509Certificate>` +
@@ -44,36 +42,40 @@ function assinarXML(xml, keyPem, certPem) {
   return sig.getSignedXml();
 }
 
-
+/* ------------------------------------------------------------------
+ * POST  /api/sefaz/consulta
+ * Body: { certificadoId, cnpjConsultado, ambiente }
+ * ----------------------------------------------------------------*/
 router.post('/consulta', async (req, res) => {
   try {
     const { certificadoId, cnpjConsultado, ambiente } = req.body;
+
     if (!certificadoId || !cnpjConsultado || !ambiente) {
-      return res.status(400).json({ error: 'Parâmetros faltando' });
+      return res.status(400).json({ error: 'Parâmetros obrigatórios faltando' });
     }
 
-    /* certificado */
+    /* 1. certificado escolhido */
     const cert = await buscarCertificado(certificadoId);
     if (!cert) return res.status(404).json({ error: 'Certificado não encontrado' });
 
-    /* extrai chave/cert PEM */
+    /* 2. extrai PEMs */
     const { keyPem, certPem } = pfxToPem(
       Buffer.from(cert.certificado_base64, 'base64'),
       cert.senha_certificado
     );
 
-    /* XML distDFeInt */
+    /* 3. monta XML distDFeInt */
     const xmlDist = createDistDFeIntXML({
-      tpAmb: ambiente === 'producao' ? '1' : '2',
+      tpAmb   : ambiente === 'producao' ? '1' : '2',
       cUFAutor: '35',
-      CNPJ: cnpjConsultado,
-      distNSU: '<consNSU><ultNSU>000000000000000</ultNSU></consNSU>'
+      CNPJ    : cnpjConsultado,
+      distNSU : '<consNSU><ultNSU>000000000000000</ultNSU></consNSU>'
     });
 
-    /* assina */
+    /* 4. assina */
     const xmlAssinado = assinarXML(xmlDist, keyPem, certPem);
 
-    /* chama SEFAZ */
+    /* 5. chama SEFAZ */
     const resposta = await consultarDistribuicaoDFe({
       certificadoBuffer: Buffer.from(cert.certificado_base64, 'base64'),
       senhaCertificado : cert.senha_certificado,
@@ -84,7 +86,7 @@ router.post('/consulta', async (req, res) => {
     res.json({ success: true, raw: resposta });
   } catch (e) {
     console.error('Erro ao consultar SEFAZ:', e);
-    res.status(500).json({ error: 'Erro interno ao consultar SEFAZ' });
+    res.status(500).json({ error: e.message });
   }
 });
 
