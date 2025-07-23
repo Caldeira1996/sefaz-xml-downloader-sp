@@ -12,21 +12,38 @@ const {
 
 const { pfxToPem } = require('../services/pfx-utils');
 
-/* assina XML usando chave PEM */
+/* ------------------------------------------------------------------------
+ * Assina o XML <distDFeInt> com chave PEM extraída do PFX
+ * --------------------------------------------------------------------- */
 function assinarXML(xml, keyPem, certPem) {
   const sig = new SignedXml();
-  sig.addReference(
-    "//*[local-name(.)='distDFeInt']",
-    ['http://www.w3.org/2000/09/xmldsig#enveloped-signature'],
-    'http://www.w3.org/2000/09/xmldsig#sha1'
-  );
+
+  // algoritmo RSA‑SHA1 (aceito pela SEFAZ)
+  sig.signatureAlgorithm = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1';
+
+  sig.addReference("//*[local-name(.)='distDFeInt']", {
+    transforms: ['http://www.w3.org/2000/09/xmldsig#enveloped-signature'],
+    digestAlgorithm: 'http://www.w3.org/2000/09/xmldsig#sha1'
+  });
+
+  // chave privada
   sig.signingKey = keyPem;
+
+  // inclui o certificado em <X509Certificate>
   sig.keyInfoProvider = {
-    getKeyInfo: () => `<X509Data>${certPem}</X509Data>`
+    getKeyInfo: () =>
+      `<X509Data><X509Certificate>` +
+      certPem
+        .replace('-----BEGIN CERTIFICATE-----', '')
+        .replace('-----END CERTIFICATE-----', '')
+        .replace(/\r?\n|\r/g, '') +
+      `</X509Certificate></X509Data>`
   };
+
   sig.computeSignature(xml);
   return sig.getSignedXml();
 }
+
 
 router.post('/consulta', async (req, res) => {
   try {
