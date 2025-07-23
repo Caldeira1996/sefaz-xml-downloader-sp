@@ -31,7 +31,7 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
  * Aqui desativamos a validação do certificado do servidor (rejectUnauthorized: false).
  */
 async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, xmlDist, ambiente }) {
-  const ca = fs.readFileSync(path.join(__dirname, '../certs/icp-chain.pem'));
+  const ca = fs.readFileSync(path.join(__dirname, '../certs/chain.pem'));
   const agent = new https.Agent({
     pfx: certificadoBuffer,     // seu PFX de cliente
     passphrase: senhaCertificado,

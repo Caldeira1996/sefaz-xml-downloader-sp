@@ -1,20 +1,18 @@
+// sefaz-request.js
 const https = require('https');
-const fs = require('fs');
-const path = require('path');
+const fs    = require('fs');
+const path  = require('path');
 const axios = require('axios');
 
-// Defina o caminho da pasta onde seus arquivos PEM estão salvos
+// Diretório onde estão seus PEMs de cliente e a cadeia de CAs
 const certDir = path.join(__dirname, 'certs');
 
-// Coloque aqui a senha do seu certificado, ou obtenha de variável de ambiente
-const passphrase = process.env.CERT_PASS || 'sua_senha_aqui';
-
+// Agent HTTPS com mTLS e validação do servidor
 const httpsAgent = new https.Agent({
   cert: fs.readFileSync(path.join(certDir, 'client-cert.pem')),
-  key: fs.readFileSync(path.join(certDir, 'client-key.pem')),
-  ca: fs.readFileSync(path.join(certDir, 'ca-chain.pem')),
-  //passphrase,
-  rejectUnauthorized: true,
+  key:  fs.readFileSync(path.join(certDir, 'client-key.pem')),
+  ca:   fs.readFileSync(path.join(certDir, 'chain.pem')),  // ac-soluti + icp-brasil
+  rejectUnauthorized: true,  // valida o cert do servidor SEFAZ‑SP
 });
 
 const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
@@ -35,7 +33,7 @@ const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
 </soap:Envelope>`;
 
 axios.post(
-  'https://nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx',
+  'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx',
   soapEnvelope,
   {
     headers: {
@@ -43,10 +41,13 @@ axios.post(
       'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF',
     },
     httpsAgent,
+    timeout: 15000,
   }
-).then(response => {
-  console.log(response.data);
-}).catch(error => {
+)
+.then(response => {
+  console.log('Resposta SEFAZ Status:', response.data);
+})
+.catch(error => {
   console.error('❌ Erro ao se comunicar com a SEFAZ:');
   console.error(error.response?.data || error.message);
 });

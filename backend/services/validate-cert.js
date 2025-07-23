@@ -1,16 +1,15 @@
-// validate-cert.js  — versão enxuta, sem espaços extras
-const fs    = require('fs');
-const https = require('https');
-const axios = require('axios');
-const path  = require('path');
+// validate-cert.js
+const fs      = require('fs');
+const https   = require('https');
+const axios   = require('axios');
+const path    = require('path');
 
-// INTERCEPTOR para ver a requisição antes de ir p/ rede
+// Exibe no console o request de teste
 axios.interceptors.request.use(conf => {
-  if (conf.url.includes('NfeStatusServico4.asmx')) {
+  if (conf.url.includes('NFeStatusServico4.asmx')) {
     console.log('\n--- REQUISIÇÃO ENVIADA ---');
-    console.log('URL :', conf.url);
+    console.log('URL     :', conf.url);
     console.log('HEADERS :', conf.headers);
-    // se quiser, mostre só o início do body:
     console.log('BODY(100):', conf.data.slice(0, 100), '...\n');
   }
   return conf;
@@ -18,13 +17,13 @@ axios.interceptors.request.use(conf => {
 
 async function validarCertificado(pfxPath, senha) {
   const httpsAgent = new https.Agent({
-    pfx: fs.readFileSync(pfxPath),
+    pfx:        fs.readFileSync(pfxPath),
     passphrase: senha,
-    ca: fs.readFileSync(path.join(__dirname, '../certs/ca-chain.pem')),
+    ca:         fs.readFileSync(path.join(__dirname, 'certs', 'chain.pem')),
     rejectUnauthorized: true,
   });
 
-  // envelope TODO em UMA LINHA
+  // Envelope SOAP 1.2 para Status de Serviço
   const xmlEnvelope =
     '<?xml version="1.0" encoding="utf-8"?>' +
     '<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">' +
@@ -41,24 +40,29 @@ async function validarCertificado(pfxPath, senha) {
 
   const headers = {
     'Content-Type':
-      'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"',
+      'application/soap+xml; charset=utf-8; ' +
+      'action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"',
   };
 
-  const { data } = await axios.post(
-    'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx',
-    xmlEnvelope,
-    { httpsAgent, headers, timeout: 15000 }
-  );
-
-  console.log(data);
+  try {
+    const { data } = await axios.post(
+      'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx',
+      xmlEnvelope,
+      { httpsAgent, headers, timeout: 15000 }
+    );
+    console.log('Resposta validação de certificado:', data);
+  } catch (err) {
+    console.error('❌ Falha na validação do certificado:');
+    console.error(err.response?.data || err.message);
+  }
 }
 
-/* teste */
+// Teste rápido
 (async () => {
-  const pfx = path.join(
+  const pfxPath = path.join(
     __dirname,
-    '../certificates',
+    'certificates',
     '52.055.075 VANUZIA BARBOSA DE JESUS_52055075000173.pfx'
   );
-  await validarCertificado(pfx, '123456');
+  await validarCertificado(pfxPath, '123456');
 })();
