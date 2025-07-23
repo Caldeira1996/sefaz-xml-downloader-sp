@@ -101,8 +101,8 @@ async function consultarStatusSefaz(
   const tpAmb      = ambiente === 'producao' ? '1' : '2';
 
   const url = ambiente === 'producao'
-    ? 'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx'
-    : 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx';
+    ? 'https://www.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NfeDistribuicaoDFe.asmx'
+    : 'https://homologacao.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NfeDistribuicaoDFe.asmx';
 
   const xmlDados =
     `<consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">` +
