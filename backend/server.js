@@ -1,4 +1,4 @@
-// server.js
+// server.js  (apenas configura o Express, *sem* app.listen)
 require('dotenv').config();
 const express    = require('express');
 const bodyParser = require('body-parser');
@@ -14,26 +14,50 @@ const sefazDownloadRouter = require('./routes/sefaz-download');
 const app = express();
 
 app.use(bodyParser.json());
-app.use(cors({ /* sua config atual */ }));
 app.use(express.json());
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      console.log('🌐 Requisição recebida de Origin:', origin);
+      const allowed = [
+        'https://www.xmlprodownloader.com.br',
+        'https://xmlprodownloader.com.br',
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'https://localhost:3000',
+      ];
+      if (!origin || allowed.includes(origin)) return callback(null, origin);
+      callback(new Error('Origem não autorizada pelo CORS'));
+    },
+    credentials: true,
+    methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  })
+);
 
 // Rotas
 app.use('/api/certificados', certificadosRoutes);
-app.use('/api/sefaz',          sefazConsultaRoutes);
-app.use('/api/sefaz',          sefazDownloadRouter);
-app.use('/api/status',         sefazStatusRouter);
-app.use('/',                   uploadCertRouter);
+app.use('/api/sefaz',        sefazConsultaRoutes);
+app.use('/api/sefaz',        sefazDownloadRouter);
+app.use('/api/status',       sefazStatusRouter);
+app.use('/',                 uploadCertRouter);
 
+// Health check
 app.get('/health', (req, res) => {
-  res.json({ status:'OK', timestamp: new Date().toISOString() });
+  res.json({
+    status:    'OK',
+    servidor:  'Proxy SEFAZ SP',
+    timestamp: new Date().toISOString(),
+    ambiente:  process.env.NODE_ENV || 'development',
+  });
 });
 
 // 404 catch‑all
 app.use((req, res) => {
+  console.warn('404 não capturado:', req.method, req.originalUrl);
   res.status(404).json({ error: 'Rota não encontrada' });
 });
 
-// Garantia da pasta de certificados
+// Garante pasta de certificados
 const dir = process.env.CERTIFICATES_DIR || './certificates';
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 

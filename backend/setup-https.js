@@ -9,11 +9,7 @@ const keyPath  = path.join(certDir, 'client-key.pem');
 const caPath   = path.join(certDir, 'ca-chain.pem');
 
 function setupHTTPS() {
-  if (
-    fs.existsSync(certPath) &&
-    fs.existsSync(keyPath) &&
-    fs.existsSync(caPath)
-  ) {
+  if (fs.existsSync(certPath) && fs.existsSync(keyPath) && fs.existsSync(caPath)) {
     const sslConfig = {
       cert: fs.readFileSync(certPath),
       key:  fs.readFileSync(keyPath),
@@ -29,7 +25,7 @@ function setupHTTPS() {
   }
 }
 
-// Agente HTTPS para requisições externas (SEFAZ, etc)
+// Exporta também um agent para suas requisições https externas, se precisar
 const agent = new https.Agent({
   cert: fs.readFileSync(certPath),
   key:  fs.readFileSync(keyPath),
