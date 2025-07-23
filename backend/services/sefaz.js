@@ -35,8 +35,8 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
   const agent = new https.Agent({
     pfx: certificadoBuffer,     // seu PFX de cliente
     passphrase: senhaCertificado,
-    ca,
-    rejectUnauthorized: true,   // aceita qualquer cert do servidor (dev)
+    //ca,
+    rejectUnauthorized: false,   // aceita qualquer cert do servidor (dev)
   });
 
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
