@@ -1,8 +1,7 @@
 // ────────────────────────────────────────────────────────────────
 // services/sefaz.js
-//   • Consulta Status‑Serviço  (SOAP 1.2)
-//   • Distribuição DF‑e        (SOAP 1.2)
-//   • Usa certificado A1 (PFX) + cadeia de CAs (ca‑chain.pem)
+//  • Consulta Status‑Serviço  (SOAP 1.2)
+//  • Distribuição DF‑e        (SOAP 1.2)
 // ────────────────────────────────────────────────────────────────
 
 require('dotenv').config();
@@ -13,7 +12,7 @@ const tls    = require('node:tls');
 const fs     = require('fs');
 const path   = require('path');
 
-// 1) Endpoints
+// 1) Endpoints oficiais (sobrescreva via .env se quiser)
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ??
   'https://nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL ??
@@ -24,34 +23,21 @@ const URL_STATUS_PROD = process.env.SEFAZ_PRODUCAO_URL ??
 const URL_STATUS_HOMO = process.env.SEFAZ_HOMOLOGACAO_URL ??
   'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx';
 
-// 2) (Opcional) log de cada requisição SOAP
+// 2) (Opcional) log das requisições SOAP
 axios.interceptors.request.use(conf => {
   if (conf.url.includes('StatusServico') || conf.url.includes('DistribuicaoDFe')) {
     console.log('\n--- REQ ENVIADA ---');
     console.log('URL          :', conf.url);
     console.log('Content-Type :', conf.headers['Content-Type'] || conf.headers['content-type']);
-    console.log('Primeiros 120 bytes:\n', conf.data.slice(0, 120), '...\n');
   }
   return conf;
 });
 
 // 3) Cria https.Agent a partir do PFX em memória
 function createAgentFromBuffer(pfxBuffer, senha) {
-  // 3.1) Valida o PKCS#12 – lança “mac verify failure” se senha errada
-  try {
-    tls.createSecureContext({ pfx: pfxBuffer, passphrase: senha });
-  } catch (err) {
-    throw new Error('mac verify failure'); // propagamos exatamente o texto esperado
-  }
+  // Valida o PKCS#12 (lança se senha errada ou RC2/RC4 em Node 18+/OpenSSL 3)
+  tls.createSecureContext({ pfx: pfxBuffer, passphrase: senha });
 
-  // DEBUG: grava o PFX em /tmp para inspeção com openssl
-  if (process.env.DEBUG_PFX) {
-    const dumpPath = `/tmp/pfx_dump_${Date.now()}.pfx`;
-    fs.writeFileSync(dumpPath, pfxBuffer);
-    console.log('📝 PFX gravado em', dumpPath);
-  }
-
-  // 3.2) CA chain
   const caPem = fs.readFileSync(
     path.join(__dirname, '../certs/ca-chain.pem'),
     'utf8'
@@ -146,7 +132,7 @@ async function consultarStatusSefaz(
     timeout: 15000,
   });
 
-  const cStat   = (xmlResposta.match(/<cStat>(\d+)<\/cStat>/)   || [])[1] || null;
+  const cStat   = (xmlResposta.match(/<cStat>(\d+)<\/cStat>/)       || [])[1] || null;
   const xMotivo = (xmlResposta.match(/<xMotivo>([^<]+)<\/xMotivo>/) || [])[1] || null;
   const sucesso = ['107', '108', '109', '111'].includes(cStat);
 
