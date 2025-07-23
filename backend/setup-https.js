@@ -1,32 +1,41 @@
-// server-https.js
-require('dotenv').config();
-const https        = require('https');
-const path         = require('path');
-const app          = require('./server');         // importa o express sem listen
-const { setupHTTPS } = require('./setup-https');
+// setup-https.js
+const fs   = require('fs');
+const path = require('path');
+const https = require('https');
 
-const PORT = parseInt(process.env.HTTPS_PORT || '3002', 10);
-const HOST = process.env.SERVER_HOST       || '0.0.0.0';
+const certDir  = path.join(__dirname, 'certs');
+const certPath = path.join(certDir, 'client-cert.pem');
+const keyPath  = path.join(certDir, 'client-key.pem');
+const caPath   = path.join(certDir, 'ca-chain.pem');
 
-console.log('🔧 Configurando HTTPS...');
-const sslConfig = setupHTTPS();
-if (!sslConfig) {
-  console.error('❌ Não foi possível carregar os certificados SSL.');
-  process.exit(1);
+function setupHTTPS() {
+  if (
+    fs.existsSync(certPath) &&
+    fs.existsSync(keyPath) &&
+    fs.existsSync(caPath)
+  ) {
+    const sslConfig = {
+      cert: fs.readFileSync(certPath),
+      key:  fs.readFileSync(keyPath),
+      ca:   fs.readFileSync(caPath),
+    };
+    if (process.env.CERT_PASSWORD) {
+      sslConfig.passphrase = process.env.CERT_PASSWORD;
+    }
+    return sslConfig;
+  } else {
+    console.error('❌ Alguns certificados SSL não foram encontrados em certs/');
+    return null;
+  }
 }
 
-const server = https.createServer(sslConfig, app);
-
-server.on('error', err => {
-  if (err.code === 'EADDRINUSE') {
-    console.warn(`⚠️ Porta ${PORT} em uso, tentando ${PORT + 1}...`);
-    server.listen(PORT + 1, HOST);
-  } else {
-    console.error('❌ Erro no HTTPS server:', err);
-    process.exit(1);
-  }
+// Agente HTTPS para requisições externas (SEFAZ, etc)
+const agent = new https.Agent({
+  cert: fs.readFileSync(certPath),
+  key:  fs.readFileSync(keyPath),
+  ca:   fs.readFileSync(caPath),
+  rejectUnauthorized: true,
+  passphrase: process.env.CERT_PASSWORD,
 });
 
-server.listen(PORT, HOST, () => {
-  console.log(`🔐 HTTPS rodando em https://${HOST}:${PORT}`);
-});
+module.exports = { setupHTTPS, agent };

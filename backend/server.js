@@ -34,12 +34,12 @@ app.use(
 );
 app.use(express.json());
 
-// Rotas
+// Rotas de API
 app.use('/api/certificados', certificadosRoutes);
-app.use('/api/sefaz',          sefazConsultaRoutes);
-app.use('/api/sefaz',          sefazDownloadRouter);
-app.use('/api/status',         sefazStatusRouter);
-app.use('/',                   uploadCertRouter);
+app.use('/api/sefaz',          sefazConsultaRoutes);   // consulta DF‑e
+app.use('/api/sefaz',          sefazDownloadRouter);   // download XML/zip
+app.use('/api/status',         sefazStatusRouter);     // status‑serviço
+app.use('/',                   uploadCertRouter);      // upload de PFX
 
 // Health check
 app.get('/health', (req, res) => {
