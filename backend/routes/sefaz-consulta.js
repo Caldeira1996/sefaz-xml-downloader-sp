@@ -25,13 +25,13 @@ function assinarXML(xml, keyPem, certPem) {
   sig.signatureAlgorithm =
     'http://www.w3.org/2000/09/xmldsig#rsa-sha1';
 
-  sig.addReference("//*[local-name(.)='distDFeInt']", {
-    transforms: [
-      'http://www.w3.org/2000/09/xmldsig#enveloped-signature'
-    ],
-    digestAlgorithm:
-      'http://www.w3.org/2000/09/xmldsig#sha1'
-  });
+  /* routes/sefaz-consulta.js  – dentro de assinarXML */
+
+sig.addReference(
+  "//*[local-name(.)='distDFeInt']",
+  ['http://www.w3.org/2000/09/xmldsig#enveloped-signature'],
+  'http://www.w3.org/2000/09/xmldsig#sha1'
+);
 
   sig.signingKey = keyPem;
 
