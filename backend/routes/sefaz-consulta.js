@@ -87,9 +87,13 @@ router.post('/consulta', async (req, res) => {
     const resposta = await consultarDistribuicaoDFe({
       certificadoBuffer: Buffer.from(cert.certificado_base64, 'base64'),
       senhaCertificado: cert.senha_certificado,
-      xmlAssinado,
-      ambiente
+      tpAmb: ambiente === 'producao' ? '1' : '2',
+      cUFAutor: '35',
+      CNPJ: cnpjConsultado,
+      distNSU: '000000000000000',
+      ambiente,
     });
+
 
     res.json({ success: true, raw: resposta });
   } catch (e) {

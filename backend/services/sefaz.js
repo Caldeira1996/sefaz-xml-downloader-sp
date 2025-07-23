@@ -67,15 +67,18 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
 async function consultarDistribuicaoDFe({
   certificadoBuffer,
   senhaCertificado,
-  xmlAssinado,
+  tpAmb,        // passe direto
+  cUFAutor,     // passe direto
+  CNPJ,         // passe direto
+  distNSU,      // passe direto (string "000000000000000")
   ambiente = 'producao',
 }) {
   const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
   const url = ambiente === 'producao' ? URL_DIST_PROD : URL_DIST_HOMO;
   console.log(`🔗 Distribuição DF‑e → ${url}`);
 
-  // Envelope SOAP completo com wrapper nfeDistDFeInteresse
- const envelopeSoap = `\
+  // monte de uma vez só, sem precisar de xmlAssinado separado:
+  const envelopeSoap = `\
 <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
   <soap:Body>
     <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
@@ -107,6 +110,7 @@ async function consultarDistribuicaoDFe({
 
   return data;
 }
+
 
 // 6) Status Serviço (SOAP 1.2, mTLS)
 async function consultarStatusSefaz(
