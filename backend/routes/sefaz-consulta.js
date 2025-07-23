@@ -76,7 +76,7 @@ router.post('/consulta', async (req, res) => {
       tpAmb   : ambiente === 'producao' ? '1' : '2',
       cUFAutor: '35',
       CNPJ    : cnpjConsultado,
-      distNSU : '<consNSU><ultNSU>000000000000000</ultNSU></consNSU>'
+      distNSU:  '000000000000000'
     });
 
     /* 4. assina */
