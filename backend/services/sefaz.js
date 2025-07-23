@@ -5,7 +5,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-// Endpoints de Distribuição de DF‑e (Produção / Homologação)
+// Endpoints de Distribuição de DF‑e
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
   'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL ||
@@ -27,20 +27,16 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
 }
 
 /**
- * Envia o envelope SOAP 1.1 para Distribuição de DF‑e e retorna o XML de resposta.
+ * Envia o envelope SOAP 1.1 para Distribuição de DF‑e usando mTLS e retorna o XML de resposta.
+ * Aqui desativamos a validação do certificado do servidor (rejectUnauthorized: false).
  */
 async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, xmlDist, ambiente }) {
-  // Carrega a cadeia de CAs (root + intermediárias) no formato PEM
-  const ca = fs.readFileSync(path.join(__dirname, '../certs/ca-chain.pem'));
-
   const agent = new https.Agent({
-    pfx: certificadoBuffer,
+    pfx: certificadoBuffer,     // seu PFX de cliente
     passphrase: senhaCertificado,
-    ca,                      // confia apenas nessa CA
-    rejectUnauthorized: true // agora confere o certificado da SEFAZ
+    rejectUnauthorized: false,   // aceita qualquer cert do servidor (dev)
   });
 
-  // Aqui usamos um template literal válido para o envelope
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope
   xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"

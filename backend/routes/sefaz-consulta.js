@@ -17,7 +17,7 @@ router.post('/consulta', async (req, res) => {
       return res.status(400).json({ error: 'Parâmetros obrigatórios faltando' });
     }
 
-    // 1) Recupera o certificado (base64 + senha) do banco
+    // 1) Recupera o PFX (base64 + senha) do DB
     const cert = await buscarCertificado(certificadoId);
     if (!cert) {
       return res.status(404).json({ error: 'Certificado não encontrado' });
@@ -35,7 +35,7 @@ router.post('/consulta', async (req, res) => {
       ultNSU: '000000000000000',
     });
 
-    // 4) Chama o serviço de Distribuição de DF‑e (SOAP 1.1)
+    // 4) Chama o serviço de Distribuição de DF‑e (SOAP 1.1)
     const respostaXml = await consultarDistribuicaoDFe({
       certificadoBuffer: pfxBuffer,
       senhaCertificado,
@@ -43,12 +43,11 @@ router.post('/consulta', async (req, res) => {
       ambiente,
     });
 
-    // 5) Parseia a resposta e extrai docs
+    // 5) Parseia a resposta e extrai os documentos
     const resultado = await parseResponse(respostaXml);
 
-    // 6) Retorna JSON com metadados e lista de docs
+    // 6) Retorna JSON com metadados e lista de XMLs
     return res.json({ success: true, ...resultado });
-
   } catch (e) {
     console.error('Erro ao consultar SEFAZ:', e);
     return res.status(500).json({ error: e.message });
