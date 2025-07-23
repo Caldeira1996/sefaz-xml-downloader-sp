@@ -5,6 +5,7 @@
   "main": "server.js",            
   "scripts": {
     "start":        "node server-https.js",
+    "start:https": "node server-https.js",
     "start:http":   "node server.js",
     "dev":          "nodemon server.js",
     "dev:https":    "nodemon server-https.js",
