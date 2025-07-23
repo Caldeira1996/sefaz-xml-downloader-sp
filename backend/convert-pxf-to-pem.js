@@ -25,7 +25,7 @@ function convertPfxToPem(pfxBuffer, passphrase, outputDir) {
   // Salva os arquivos PEM
   fs.writeFileSync(`${outputDir}/client-key.pem`, privateKeyPem);
   fs.writeFileSync(`${outputDir}/client-cert.pem`, certificatePem);
-  fs.writeFileSync(`${outputDir}/ca-chain.pem`, caCerts || certificatePem); // fallback para evitar vazio
+  fs.writeFileSync(`${outputDir}/chain.pem`, caCerts || certificatePem); // fallback para evitar vazio
 
   return true;
 }
