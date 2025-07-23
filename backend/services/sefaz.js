@@ -59,6 +59,12 @@ function createAgentFromBuffer(pfxBuffer, senha) {
     path.join(__dirname, '../certs/ca-chain.pem'),
     'utf8'
   );
+
+  // 0) Dumpa o buffer para arquivo – apenas para debug
+  const dumpPath = `/tmp/pfx_dump_${Date.now()}.pfx`;
+  require('fs').writeFileSync(dumpPath, pfxBuffer);
+  console.log('📝 PFX gravado em', dumpPath);
+  
   return new https.Agent({
     pfx:                pfxBuffer,
     passphrase:         senha,
