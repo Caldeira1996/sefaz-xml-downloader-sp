@@ -36,7 +36,7 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
     pfx: certificadoBuffer,     // seu PFX de cliente
     passphrase: senhaCertificado,
     ca,
-    rejectUnauthorized: false,   // aceita qualquer cert do servidor (dev)
+    rejectUnauthorized: true,   // aceita qualquer cert do servidor (dev)
   });
 
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
