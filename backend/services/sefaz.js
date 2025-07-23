@@ -11,6 +11,8 @@ const https = require('https');
 const fs    = require('fs');
 const path  = require('path');
 
+const tls   = require('node:tls');
+
 // 1) Endpoints (lê do .env, ou usa fallback)
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
   'https://nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
@@ -35,6 +37,20 @@ axios.interceptors.request.use(conf => {
 
 // 3) Cria https.Agent a partir do PFX + CA em runtime
 function createAgentFromBuffer(pfxBuffer, senha) {
+    /* 1) Valida o PKCS#12 já em memória.
+   *    Se a senha estiver errada ou o PFX usar RC2/RC4,
+   *    tls.createSecureContext lança o mesmo “mac verify failure”.
+   */
+  try {
+    tls.createSecureContext({ pfx: pfxBuffer, passphrase: senha });
+  } catch (err) {
+    console.error('Erro ao carregar PFX:', err.message);
+    // Aqui você pode:
+    //   • retornar 400 para a API: “Senha do certificado incorreta”,
+    //   • ou apenas relançar para log e stack‑trace.
+    throw new Error('Falha ao processar certificado: ' + err.message);
+  }
+
   const caPem = fs.readFileSync(
     path.join(__dirname, '../certs/ca-chain.pem'),
     'utf8'
