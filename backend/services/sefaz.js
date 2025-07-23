@@ -7,6 +7,16 @@ const https = require('https');
 const fs    = require('fs');
 const path  = require('path');
 
+axios.interceptors.request.use(conf => {
+  if (conf.url.includes('NFeStatusServico4.asmx')) {
+    console.log('\n--- REQ ENVIADA ---');
+    console.log('Content-Type:', conf.headers['Content-Type'] || conf.headers['content-type']);
+    console.log('Primeiros 120 bytes:\n', conf.data.slice(0, 120), '...\n');
+  }
+  return conf;
+});
+
+
 // CA (AC Soluti EV G4 + Raiz v10)
 const ca = fs.readFileSync(path.join(__dirname, '../certs/ca-chain.pem'), 'utf8');
 
