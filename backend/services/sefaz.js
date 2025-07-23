@@ -2,6 +2,8 @@
 require('dotenv').config();
 const axios = require('axios');
 const https = require('https');
+const fs = require('fs');
+const path = require('path');
 
 // Endpoints de Distribuição de DF‑e (Produção / Homologação)
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
@@ -18,7 +20,9 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
   <tpAmb>${tpAmb}</tpAmb>
   <cUFAutor>${cUFAutor}</cUFAutor>
   <CNPJ>${CNPJ}</CNPJ>
-  <distNSU><ultNSU>${ultNSU}</ultNSU></distNSU>
+  <distNSU>
+    <ultNSU>${ultNSU}</ultNSU>
+  </distNSU>
 </distDFeInt>`;
 }
 
@@ -26,12 +30,17 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
  * Envia o envelope SOAP 1.1 para Distribuição de DF‑e e retorna o XML de resposta.
  */
 async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, xmlDist, ambiente }) {
+  // Carrega a cadeia de CAs (root + intermediárias) no formato PEM
+  const ca = fs.readFileSync(path.join(__dirname, '../certificates/chain.pem'));
+
   const agent = new https.Agent({
     pfx: certificadoBuffer,
     passphrase: senhaCertificado,
-    rejectUnauthorized: false, // Em produção, use true e configure cacert
+    ca,                      // confia apenas nessa CA
+    rejectUnauthorized: true // agora confere o certificado da SEFAZ
   });
 
+  // Aqui usamos um template literal válido para o envelope
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope
   xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
