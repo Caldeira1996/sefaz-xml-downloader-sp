@@ -6,18 +6,18 @@
 // ────────────────────────────────────────────────────────────────
 
 require('dotenv').config();           // garante que process.env já está populado
-const axios  = require('axios');
-const https  = require('https');
-const fs     = require('fs');
-const path   = require('path');
+const axios = require('axios');
+const https = require('https');
+const fs = require('fs');
+const path = require('path');
 
 /* ------------------------------------------------------------------
  * 1) Constantes (podem vir do .env)
  * ----------------------------------------------------------------*/
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
-  'https://www.nfe.fazenda.gov.br/ws/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
+  'https://www.nfe.fazenda.gov.br/ws/nfeDistribuicaoDFe/NfeDistribuicaoDFe.asmx';
 const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL ||
-  'https://homologacao.nfe.fazenda.gov.br/ws/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
+  'https://homologacao.nfe.fazenda.gov.br/ws/nfeDistribuicaoDFe/NfeDistribuicaoDFe.asmx';
 
 const URL_STATUS_PROD = process.env.SEFAZ_PRODUCAO_URL ||
   'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx';
@@ -45,13 +45,13 @@ axios.interceptors.request.use(conf => {
  * ----------------------------------------------------------------*/
 function createAgentFromBuffer(pfxBuffer, senha) {
   const caPath = path.join(__dirname, '../certs/ca-chain.pem');
-  const caPem  = fs.readFileSync(caPath, 'utf8');        // lido a cada call
+  const caPem = fs.readFileSync(caPath, 'utf8');        // lido a cada call
 
   return new https.Agent({
-    pfx : pfxBuffer,
-    passphrase : senha,
-    ca  : caPem,
-    rejectUnauthorized : true          // produção segura
+    pfx: pfxBuffer,
+    passphrase: senha,
+    ca: caPem,
+    rejectUnauthorized: true          // produção segura
   });
 }
 
@@ -113,25 +113,25 @@ async function consultarStatusSefaz(
   cUF = '35'                     // SP default
 ) {
   const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
-  const tpAmb      = ambiente === 'producao' ? '1' : '2';
+  const tpAmb = ambiente === 'producao' ? '1' : '2';
 
   const url = ambiente === 'producao' ? URL_STATUS_PROD : URL_STATUS_HOMO;
 
   const xmlDados =
     `<consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">` +
-      `<tpAmb>${tpAmb}</tpAmb>` +
-      `<cUF>${cUF}</cUF>` +
-      `<xServ>STATUS</xServ>` +
+    `<tpAmb>${tpAmb}</tpAmb>` +
+    `<cUF>${cUF}</cUF>` +
+    `<xServ>STATUS</xServ>` +
     `</consStatServ>`;
 
   const envelopeSoap =
     '<?xml version="1.0" encoding="utf-8"?>' +
     '<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">' +
-      '<soap12:Body>' +
-        '<nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">' +
-          xmlDados +
-        '</nfeDadosMsg>' +
-      '</soap12:Body>' +
+    '<soap12:Body>' +
+    '<nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">' +
+    xmlDados +
+    '</nfeDadosMsg>' +
+    '</soap12:Body>' +
     '</soap12:Envelope>';
 
   const { data: xmlResposta } = await axios.post(url, envelopeSoap, {
@@ -145,8 +145,8 @@ async function consultarStatusSefaz(
   });
 
   // extrai campos principais
-  const cStat   = (xmlResposta.match(/<cStat>(\d+)<\/cStat>/)   || [])[1] || null;
-  const xMotivo = (xmlResposta.match(/<xMotivo>([^<]+)<\/xMotivo>/)|| [])[1] || null;
+  const cStat = (xmlResposta.match(/<cStat>(\d+)<\/cStat>/) || [])[1] || null;
+  const xMotivo = (xmlResposta.match(/<xMotivo>([^<]+)<\/xMotivo>/) || [])[1] || null;
   const sucesso = ['107', '108', '109', '111'].includes(cStat);
 
   return {
