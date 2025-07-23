@@ -75,18 +75,25 @@ async function consultarDistribuicaoDFe({
   console.log(`🔗 Distribuição DF‑e → ${url}`);
 
   // Envelope SOAP completo com wrapper nfeDistDFeInteresse
-  const envelopeSoap = `
-<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-  <soap12:Body>
+ const envelopeSoap = `\
+<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
+  <soap:Body>
     <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
       <nfeDadosMsg>
         <![CDATA[
-          ${xmlAssinado}
+<distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
+  <tpAmb>${tpAmb}</tpAmb>
+  <cUFAutor>${cUFAutor}</cUFAutor>
+  <CNPJ>${CNPJ}</CNPJ>
+  <distNSU>
+    <ultNSU>${distNSU}</ultNSU>
+  </distNSU>
+</distDFeInt>
         ]]>
       </nfeDadosMsg>
     </nfeDistDFeInteresse>
-  </soap12:Body>
-</soap12:Envelope>`.trim();
+  </soap:Body>
+</soap:Envelope>`.trim();
 
   const { data } = await axios.post(url, envelopeSoap, {
     httpsAgent,
