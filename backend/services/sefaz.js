@@ -15,9 +15,10 @@ const path = require('path');
  * 1) Constantes (podem vir do .env)
  * ----------------------------------------------------------------*/
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
-  'https://www.nfe.fazenda.gov.br/ws/nfeDistribuicaoDFe/NfeDistribuicaoDFe.asmx';
-const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL ||
-  'https://homologacao.nfe.fazenda.gov.br/ws/nfeDistribuicaoDFe/NfeDistribuicaoDFe.asmx';
+  'https://www.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
+
+// não existe host de homologação; se alguém pedir, usamos o mesmo da produção
+const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL || URL_DIST_PROD;
 
 const URL_STATUS_PROD = process.env.SEFAZ_PRODUCAO_URL ||
   'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx';
