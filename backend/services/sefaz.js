@@ -10,31 +10,35 @@ const path   = require('path');
 
 // ── loga toda requisição SOAP para debug (opcional) ─────────────────────────────
 axios.interceptors.request.use(conf => {
-  if (conf.url.includes('NFeStatusServico4.asmx') ||
-      conf.url.includes('NFeDistribuicaoDFe.asmx')) {
+  if (
+    conf.url.includes('NFeStatusServico4.asmx') ||
+    conf.url.includes('NFeDistribuicaoDFe.asmx')
+  ) {
     console.log('\n--- REQ ENVIADA ---');
     console.log('URL          :', conf.url);
-    console.log('Content-Type :', conf.headers['Content-Type'] || conf.headers['content-type']);
+    console.log(
+      'Content-Type :',
+      conf.headers['Content-Type'] || conf.headers['content-type']
+    );
     console.log('Primeiros 120 bytes do body:\n', conf.data.slice(0, 120), '...\n');
   }
   return conf;
 });
 
 /*────────────────────────────────────────────────────────────────────────────────
-  Helper: cria um https.Agent a partir do PFX e sempre lê a cadeia de CA
+  Helper: cria um https.Agent a partir do PFX e lê a cadeia de CA toda vez
 ────────────────────────────────────────────────────────────────────────────────*/
 function createAgentFromBuffer(pfxBuffer, senha) {
-  // lê o arquivo CA toda vez → evita restart quando trocar o PEM
   const ca = fs.readFileSync(
     path.join(__dirname, '../certs/ca-chain.pem'),
     'utf8'
   );
 
   return new https.Agent({
-    pfx            : pfxBuffer,
-    passphrase     : senha,
+    pfx: pfxBuffer,
+    passphrase: senha,
     ca,
-    rejectUnauthorized: true       // obrigatório em produção
+    rejectUnauthorized: true   // produção: true
   });
 }
 
@@ -62,9 +66,11 @@ async function consultarDistribuicaoDFe({
 }) {
   const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
 
-  const url = ambiente === 'producao'
-   ? 'https://www.nfe.fazenda.gov.br/ws/nfeDistribuicaoDFe/NFeDistribuicaoDFe.asmx'
-   : 'https://homologacao.nfe.fazenda.gov.br/ws/nfeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
+  // ⬇️  ENDPOINTS CORRETOS (sem /ws/ e com Nfe maiúsculo)
+  const url =
+    ambiente === 'producao'
+      ? 'https://www.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NfeDistribuicaoDFe.asmx'
+      : 'https://homologacao.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NfeDistribuicaoDFe.asmx';
 
   const envelopeSoap = `
 <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
@@ -89,7 +95,7 @@ async function consultarDistribuicaoDFe({
 }
 
 /*───────────────────────────────────────────────────────────────────────────────
-  2) Consulta Status do Serviço (SOAP 1.2  – igual ao validate‑cert.js)
+  2) Consulta Status do Serviço (SOAP 1.2)
 ───────────────────────────────────────────────────────────────────────────────*/
 async function consultarStatusSefaz(
   certificadoBuffer,
@@ -100,16 +106,17 @@ async function consultarStatusSefaz(
   const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
   const tpAmb      = ambiente === 'producao' ? '1' : '2';
 
-  const url = ambiente === 'producao'
-    ? 'https://www.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NfeDistribuicaoDFe.asmx'
-    : 'https://homologacao.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NfeDistribuicaoDFe.asmx';
+  const url =
+    ambiente === 'producao'
+      ? 'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx'
+      : 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx';
 
-  const xmlDados =
-    `<consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">` +
-      `<tpAmb>${tpAmb}</tpAmb>` +
-      `<cUF>${cUF}</cUF>` +
-      `<xServ>STATUS</xServ>` +
-    `</consStatServ>`;
+  const xmlDados = `
+<consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <tpAmb>${tpAmb}</tpAmb>
+  <cUF>${cUF}</cUF>
+  <xServ>STATUS</xServ>
+</consStatServ>`.trim();
 
   const envelopeSoap =
     '<?xml version="1.0" encoding="utf-8"?>' +
@@ -121,35 +128,27 @@ async function consultarStatusSefaz(
       '</soap12:Body>' +
     '</soap12:Envelope>';
 
-  try {
-    const { data: xmlResposta } = await axios.post(url, envelopeSoap, {
-      httpsAgent,
-      headers: {
-        'Content-Type':
-          'application/soap+xml; charset=utf-8; ' +
-          'action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"'
-      },
-      timeout: 15000
-    });
+  const { data: xmlResposta } = await axios.post(url, envelopeSoap, {
+    httpsAgent,
+    headers: {
+      'Content-Type':
+        'application/soap+xml; charset=utf-8; ' +
+        'action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"'
+    },
+    timeout: 15000
+  });
 
-    const cStat   = (xmlResposta.match(/<cStat>(\d+)<\/cStat>/)   || [])[1] || null;
-    const xMotivo = (xmlResposta.match(/<xMotivo>([^<]+)<\/xMotivo>/)|| [])[1] || null;
-    const sucesso = ['107', '108', '109', '111'].includes(cStat);
+  const cStat   = (xmlResposta.match(/<cStat>(\d+)<\/cStat>/)   || [])[1] || null;
+  const xMotivo = (xmlResposta.match(/<xMotivo>([^<]+)<\/xMotivo>/)|| [])[1] || null;
+  const sucesso = ['107', '108', '109', '111'].includes(cStat);
 
-    return {
-      sucesso,
-      statusCode: cStat,
-      motivo: xMotivo,
-      raw: xmlResposta,
-      error: sucesso ? null : `[cStat: ${cStat}] ${xMotivo || 'Motivo não informado'}`
-    };
-  } catch (err) {
-    if (err.response?.data) {
-      console.error('Resposta 500 da SEFAZ:', err.response.data);
-      return { sucesso: false, raw: err.response.data, error: 'HTTP 500 – erro SEFAZ' };
-    }
-    return { sucesso: false, error: err.message };
-  }
+  return {
+    sucesso,
+    statusCode: cStat,
+    motivo: xMotivo,
+    raw: xmlResposta,
+    error: sucesso ? null : `[cStat: ${cStat}] ${xMotivo || 'Motivo não informado'}`
+  };
 }
 
 /*───────────────────────────────────────────────────────────────────────────────
