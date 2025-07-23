@@ -15,7 +15,7 @@ const path  = require('path');
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
   'https://nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL ||
-  'https://homologacao.nfe.fazenda.gov.br/ws/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
+  'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx'; // ← novo host
 
 const URL_STATUS_PROD = process.env.SEFAZ_PRODUCAO_URL ||
   'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx';
@@ -59,7 +59,12 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, distNSU }) {
 }
 
 // 5) Distribuição DF‑e (SOAP 1.2)
-async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, xmlAssinado, ambiente = 'producao' }) {
+async function consultarDistribuicaoDFe({ 
+  certificadoBuffer, 
+  senhaCertificado, 
+  xmlAssinado, 
+  ambiente = 'producao' 
+}) {
   const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
   const url = ambiente === 'producao' ? URL_DIST_PROD : URL_DIST_HOMO;
 
