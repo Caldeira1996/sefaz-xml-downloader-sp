@@ -13,7 +13,7 @@ const path  = require('path');
 
 // 1) Endpoints (lê do .env, ou usa fallback)
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
-  'https://www.nfe.fazenda.gov.br/ws/nfeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
+  'https://nfe.fazenda.sp.gov.br/ws/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL ||
   'https://homologacao.nfe.fazenda.gov.br/ws/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 
