@@ -5,7 +5,7 @@ const path  = require('path');
 const axios = require('axios');
 
 // Diretório onde estão seus PEMs de cliente e a cadeia de CAs
-const certDir = path.join(__dirname, 'certs');
+const certDir = path.join(__dirname, 'certificates');
 
 // Agent HTTPS com mTLS e validação do servidor
 const httpsAgent = new https.Agent({
