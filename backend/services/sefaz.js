@@ -69,8 +69,8 @@ async function consultarDistribuicaoDFe({
   // ⬇️  ENDPOINTS CORRETOS (sem /ws/ e com Nfe maiúsculo)
   const url =
     ambiente === 'producao'
-      ? 'https://www.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NfeDistribuicaoDFe.asmx'
-      : 'https://homologacao.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NfeDistribuicaoDFe.asmx';
+      ? 'https://www.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx'
+      : 'https://homologacao.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 
   const envelopeSoap = `
 <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
