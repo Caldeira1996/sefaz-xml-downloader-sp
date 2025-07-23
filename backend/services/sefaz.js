@@ -63,8 +63,8 @@ async function consultarDistribuicaoDFe({
   const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
 
   const url = ambiente === 'producao'
-   ? 'https://www.nfe.fazenda.gov.br/ws/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx'
-   : 'https://homologacao.nfe.fazenda.gov.br/ws/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
+   ? 'https://www.nfe.fazenda.gov.br/ws/nfeDistribuicaoDFe/NFeDistribuicaoDFe.asmx'
+   : 'https://homologacao.nfe.fazenda.gov.br/ws/nfeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 
   const envelopeSoap = `
 <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
