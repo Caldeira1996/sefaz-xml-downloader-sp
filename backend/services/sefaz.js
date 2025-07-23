@@ -36,18 +36,19 @@ axios.interceptors.request.use(conf => {
 });
 
 // 3) Cria https.Agent a partir do PFX em memória
+// 3) Cria https.Agent a partir do PFX em memória
 function createAgentFromBuffer(pfxBuffer, passphrase) {
-  // Valida o PKCS#12 (lança se senha errada ou PFX com algoritmo obsoleto)
+  // Valida o PKCS#12 (lança se a senha estiver errada ou PFX obsoleto)
   tls.createSecureContext({ pfx: pfxBuffer, passphrase });
 
   return new https.Agent({
-    pfx:            pfxBuffer,
-    passphrase,
-    ca:             fs.readFileSync(path.join(__dirname, '../certs/ca-chain.pem'), 'utf8'),
-    // ao comentar o 'ca', usa-se as raízes padrão do Node.js (Let's Encrypt, Sectigo...)
-    rejectUnauthorized: true,
+    pfx:                pfxBuffer,
+    passphrase:         passphrase,
+    // Para *ignorar* falhas no certificado do servidor (não recomendado em produção!):
+    rejectUnauthorized: false,
   });
 }
+
 
 // 4) Gera <distDFeInt> XML “puro” (sem o envelope SOAP)
 function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, distNSU }) {
