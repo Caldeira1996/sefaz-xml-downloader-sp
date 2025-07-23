@@ -2,10 +2,10 @@
 // services/sefaz.js
 //  • Consulta Status‑Serviço  (SOAP 1.2)
 //  • Distribuição DF‑e        (SOAP 1.2)
-//  • Usa certificado A1 (PFX) + cadeia de CAs (ca-chain.pem)
+//  • Usa certificado A1 (PFX) + cadeia de CAs (ca‑chain.pem)
 // ────────────────────────────────────────────────────────────────
 
-require('dotenv').config();
+require('dotenv').config();           // carrega o .env
 const axios = require('axios');
 const https = require('https');
 const fs    = require('fs');
@@ -13,8 +13,9 @@ const path  = require('path');
 
 // 1) Endpoints (lê do .env, ou usa fallback)
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
-  'https://www.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
-const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL || URL_DIST_PROD;
+  'https://www.nfe.fazenda.gov.br/ws/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
+const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL ||
+  'https://homologacao.nfe.fazenda.gov.br/ws/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 
 const URL_STATUS_PROD = process.env.SEFAZ_PRODUCAO_URL ||
   'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx';
@@ -39,9 +40,9 @@ function createAgentFromBuffer(pfxBuffer, senha) {
     'utf8'
   );
   return new https.Agent({
-    pfx:            pfxBuffer,
-    passphrase:     senha,
-    ca:             caPem,
+    pfx:                pfxBuffer,
+    passphrase:         senha,
+    ca:                 caPem,
     rejectUnauthorized: true,
   });
 }
