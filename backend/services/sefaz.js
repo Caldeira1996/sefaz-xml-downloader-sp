@@ -78,35 +78,26 @@ async function consultarDistribuicaoDFe({
   console.log(`🔗 Distribuição DF‑e → ${url}`);
 
   // monte de uma vez só, sem precisar de xmlAssinado separado:
-  const envelopeSoap = `\
-<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
-  <soap:Body>
+  const envelopeSoap = `<?xml version="1.0" encoding="utf-8"?>
+<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+  <soap12:Body>
     <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
       <nfeDadosMsg>
-        <![CDATA[
-<distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
-  <tpAmb>${tpAmb}</tpAmb>
-  <cUFAutor>${cUFAutor}</cUFAutor>
-  <CNPJ>${CNPJ}</CNPJ>
-  <distNSU>
-    <ultNSU>${distNSU}</ultNSU>
-  </distNSU>
-</distDFeInt>
-        ]]>
+        <![CDATA[${xmlAssinado}]]>
       </nfeDadosMsg>
     </nfeDistDFeInteresse>
-  </soap:Body>
-</soap:Envelope>`.trim();
+  </soap12:Body>
+</soap12:Envelope>`;
 
-  const { data } = await axios.post(url, envelopeSoap, {
-    httpsAgent,
-    headers: {
-      'Content-Type':
-        'application/soap+xml; charset=utf-8; ' +
-        'action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
-    },
-    timeout: 15000,
-  });
+  await axios.post(url, envelopeSoap, {
+  httpsAgent,
+  headers: {
+    'Content-Type':
+      'application/soap+xml; charset=utf-8; ' +
+      'action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
+  },
+  timeout: 15000,
+});
 
   return data;
 }
