@@ -4,6 +4,7 @@ const {
   buscarCertificado,
   listarCertificadosAtivos,
 } = require('../services/certificados');
+const db = require('../config/db'); // knex ou mysql2/promise
 
 const { excluirCertificado } = require('../services/certificados');
 
@@ -85,5 +86,16 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({ sucesso: false, erro: err.message || 'Erro ao excluir certificado' });
   }
 });
+
+router.patch('/:id/principal', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    await marcarComoPrincipal(id);
+    res.json({ sucesso: true, mensagem: `Certificado ${id} agora é o principal.` });
+  } catch (err) {
+    res.status(400).json({ sucesso: false, erro: err.message });
+  }
+});
+
 
 module.exports = router;

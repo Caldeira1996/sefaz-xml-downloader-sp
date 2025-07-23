@@ -28,11 +28,11 @@ async function salvarCertificado({
 /* Lista todos os certificados válidos/ativos */
 async function listarCertificadosAtivos() {
   const { rows } = await pool.query(`
-    SELECT id, nome, cnpj, validade, tipo, ambiente, criado_em,
-           (ROW_NUMBER() OVER (ORDER BY criado_em DESC) = 1) AS is_principal
-    FROM certificados
-    WHERE validade IS NULL OR validade > NOW()
-    ORDER BY criado_em DESC
+    SELECT id, nome, cnpj, validade, tipo, ambiente,
+           criado_em, is_principal
+      FROM certificados
+      WHERE validade IS NULL OR validade > NOW()
+      ORDER BY criado_em DESC;
   `);
   return rows;
 }
@@ -91,10 +91,45 @@ async function excluirCertificado(id) {
   await pool.query('DELETE FROM certificados WHERE id = $1', [id]);
 }
 
+async function marcarComoPrincipal(id) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // pega o CNPJ correspondente
+    const {
+      rows: [{ cnpj }],
+    } = await client.query('SELECT cnpj FROM certificados WHERE id = $1', [id]);
+    if (!cnpj) throw new Error('Certificado não encontrado');
+
+    // limpa os principais desse CNPJ
+    await client.query(
+      'UPDATE certificados SET is_principal = FALSE WHERE cnpj = $1',
+      [cnpj]
+    );
+
+    // define o escolhido
+    await client.query(
+      'UPDATE certificados SET is_principal = TRUE, ambiente = ambiente -- mantém, só exemplo\n' +
+      'WHERE id = $1',
+      [id]
+    );
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+
 module.exports = {
   salvarCertificado,
   listarCertificadosAtivos,
   buscarCertificado,            // ← exportado
   buscarCertificadoPrincipal,
   excluirCertificado,
+  marcarComoPrincipal,
 };
