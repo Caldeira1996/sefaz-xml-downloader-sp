@@ -1,36 +1,46 @@
 // ────────────────────────────────────────────────────────────────────────────────
 // services/sefaz.js
+// Requisita SEFAZ (Status‑Serviço e Distribuição DF‑e) com certificado A1
 // ────────────────────────────────────────────────────────────────────────────────
 
-const axios = require('axios');
-const https = require('https');
-const fs    = require('fs');
-const path  = require('path');
+const axios  = require('axios');
+const https  = require('https');
+const fs     = require('fs');
+const path   = require('path');
 
+// ── loga toda requisição SOAP para debug (opcional) ─────────────────────────────
 axios.interceptors.request.use(conf => {
-  if (conf.url.includes('NFeStatusServico4.asmx')) {
+  if (conf.url.includes('NFeStatusServico4.asmx') ||
+      conf.url.includes('NFeDistribuicaoDFe.asmx')) {
     console.log('\n--- REQ ENVIADA ---');
-    console.log('Content-Type:', conf.headers['Content-Type'] || conf.headers['content-type']);
-    console.log('Primeiros 120 bytes:\n', conf.data.slice(0, 120), '...\n');
+    console.log('URL          :', conf.url);
+    console.log('Content-Type :', conf.headers['Content-Type'] || conf.headers['content-type']);
+    console.log('Primeiros 120 bytes do body:\n', conf.data.slice(0, 120), '...\n');
   }
   return conf;
 });
 
-
-// CA (AC Soluti EV G4 + Raiz v10)
-const ca = fs.readFileSync(path.join(__dirname, '../certs/ca-chain.pem'), 'utf8');
-
-// Agent HTTPS a partir do PFX
+/*────────────────────────────────────────────────────────────────────────────────
+  Helper: cria um https.Agent a partir do PFX e sempre lê a cadeia de CA
+────────────────────────────────────────────────────────────────────────────────*/
 function createAgentFromBuffer(pfxBuffer, senha) {
+  // lê o arquivo CA toda vez → evita restart quando trocar o PEM
+  const ca = fs.readFileSync(
+    path.join(__dirname, '../certs/ca-chain.pem'),
+    'utf8'
+  );
+
   return new https.Agent({
-    pfx: pfxBuffer,
-    passphrase: senha,
+    pfx            : pfxBuffer,
+    passphrase     : senha,
     ca,
-    rejectUnauthorized: true
+    rejectUnauthorized: true       // obrigatório em produção
   });
 }
 
-// ── Distribuição DF‑e (SOAP 1.2) ───────────────────────────────────────────────
+/*───────────────────────────────────────────────────────────────────────────────
+  1) XML helper para Distribuição DF‑e
+───────────────────────────────────────────────────────────────────────────────*/
 function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, distNSU }) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
@@ -41,8 +51,14 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, distNSU }) {
 </distDFeInt>`;
 }
 
+/*───────────────────────────────────────────────────────────────────────────────
+  1) Consulta Distribuição DF‑e  (SOAP 1.2)
+───────────────────────────────────────────────────────────────────────────────*/
 async function consultarDistribuicaoDFe({
-  certificadoBuffer, senhaCertificado, xmlAssinado, ambiente
+  certificadoBuffer,
+  senhaCertificado,
+  xmlAssinado,
+  ambiente
 }) {
   const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
 
@@ -72,9 +88,14 @@ async function consultarDistribuicaoDFe({
   return data;
 }
 
-// ── Status Serviço (SOAP 1.2, igual ao validate‑cert.js) ───────────────────────
+/*───────────────────────────────────────────────────────────────────────────────
+  2) Consulta Status do Serviço (SOAP 1.2  – igual ao validate‑cert.js)
+───────────────────────────────────────────────────────────────────────────────*/
 async function consultarStatusSefaz(
-  certificadoBuffer, senhaCertificado, ambiente, cUF = '35'
+  certificadoBuffer,
+  senhaCertificado,
+  ambiente,
+  cUF = '35'           // 35 = SP
 ) {
   const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
   const tpAmb      = ambiente === 'producao' ? '1' : '2';
@@ -131,7 +152,9 @@ async function consultarStatusSefaz(
   }
 }
 
-// Exporta funções
+/*───────────────────────────────────────────────────────────────────────────────
+  Exporta
+───────────────────────────────────────────────────────────────────────────────*/
 module.exports = {
   createAgentFromBuffer,
   createDistDFeIntXML,
