@@ -2,18 +2,14 @@
 require('dotenv').config();
 const axios = require('axios');
 const https = require('https');
-const fs = require('fs');
-const path = require('path');
+const fs    = require('fs');
+const path  = require('path');
 
-// Endpoints de Distribuição de DF‑e
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
   'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL ||
   'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 
-/**
- * Gera o XML puro de <distDFeInt> sem assinatura interna.
- */
 function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
@@ -26,17 +22,16 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
 </distDFeInt>`;
 }
 
-/**
- * Envia o envelope SOAP 1.1 para Distribuição de DF‑e usando mTLS e retorna o XML de resposta.
- * Aqui desativamos a validação do certificado do servidor (rejectUnauthorized: false).
- */
 async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, xmlDist, ambiente }) {
+  // 1) Carrega a cadeia Sectigo correta
   const ca = fs.readFileSync(path.join(__dirname, '../certs/sectigo-chain.pem'));
+
+  // 2) Cria o Agent mTLS **com validação** do servidor
   const agent = new https.Agent({
-    pfx: certificadoBuffer,     // seu PFX de cliente
-    passphrase: senhaCertificado,
-    //ca,
-    rejectUnauthorized: false,   // aceita qualquer cert do servidor (dev)
+    pfx:                certificadoBuffer,
+    passphrase:         senhaCertificado,
+    ca,                  // <<< descomentado e apontando para sectigo-chain.pem
+    rejectUnauthorized: true // <<< valida o cert do servidor WWW1
   });
 
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
