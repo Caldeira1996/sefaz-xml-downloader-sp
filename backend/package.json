@@ -1,27 +1,23 @@
-
 {
   "name": "sefaz-proxy-server",
   "version": "1.0.0",
   "description": "Servidor proxy para comunicação com SEFAZ SP",
-  "main": "server.js",
+  "main": "server.js",            
   "scripts": {
-    "start": "node server.js",
-    "start:https": "node server-https.js",
-    "dev": "nodemon server.js",
-    "dev:https": "nodemon server-https.js",
-    "setup-ssl": "chmod +x generate-ssl.sh && ./generate-ssl.sh",
-    "test-ssl": "curl -k https://localhost:3002/health"
+    "start":        "node server-https.js",
+    "start:http":   "node server.js",
+    "dev":          "nodemon server.js",
+    "dev:https":    "nodemon server-https.js",
+    "setup-ssl":    "chmod +x generate-ssl.sh && ./generate-ssl.sh",
+    "test-ssl":     "curl -k https://localhost:3002/health"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "soap": "^0.45.0",
-    "xml2js": "^0.6.2",
-    "https": "^1.0.0",
-    "fs": "^0.0.1-security",
-    "path": "^0.12.7",
-    "multer": "^1.4.5-lts.1"
+    "cors":    "^2.8.5",
+    "dotenv":  "^16.3.1",
+    "soap":    "^0.45.0",
+    "xml2js":  "^0.6.2",
+    "multer":  "^1.4.5-lts.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
