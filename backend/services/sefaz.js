@@ -31,7 +31,7 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
  */
 async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, xmlDist, ambiente }) {
   // Carrega a cadeia de CAs (root + intermediárias) no formato PEM
-  const ca = fs.readFileSync(path.join(__dirname, '../certificates/chain.pem'));
+  const ca = fs.readFileSync(path.join(__dirname, '../certs/ca-chain.pem'));
 
   const agent = new https.Agent({
     pfx: certificadoBuffer,
