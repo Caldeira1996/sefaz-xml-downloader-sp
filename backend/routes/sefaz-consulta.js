@@ -1,38 +1,15 @@
 // routes/sefaz-consulta.js
 const express = require('express');
-const { SignedXml } = require('xml-crypto');
 const { buscarCertificado } = require('../services/certificados');
-const {
-  createDistDFeIntXML,
-  consultarDistribuicaoDFe,
-} = require('../services/sefaz');
-const { pfxToPem } = require('../services/pfx-utils');
+const { createDistDFeIntXML, consultarDistribuicaoDFe } = require('../services/sefaz');
+const { parseResponse } = require('../controller/doczip');
 
 const router = express.Router();
 
-// 1) Função que assina o XML puro de <distDFeInt>
-function assinarXML(xml, keyPem, certPem) {
-  const sig = new SignedXml();
-  sig.signatureAlgorithm = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1';
-  sig.addReference(
-    "//*[local-name()='distDFeInt']",
-    ['http://www.w3.org/2000/09/xmldsig#enveloped-signature'],
-    'http://www.w3.org/2000/09/xmldsig#sha1'
-  );
-  sig.signingKey = keyPem;
-  sig.keyInfoProvider = {
-    getKeyInfo: () =>
-      `<X509Data><X509Certificate>${
-        certPem
-          .replace('-----BEGIN CERTIFICATE-----', '')
-          .replace('-----END CERTIFICATE-----', '')
-          .replace(/\r?\n|\r/g, '')
-      }</X509Certificate></X509Data>`
-  };
-  sig.computeSignature(xml);
-  return sig.getSignedXml();
-}
-
+/**
+ * POST /consulta
+ * Body: { certificadoId, cnpjConsultado, ambiente }
+ */
 router.post('/consulta', async (req, res) => {
   try {
     const { certificadoId, cnpjConsultado, ambiente } = req.body;
@@ -40,38 +17,41 @@ router.post('/consulta', async (req, res) => {
       return res.status(400).json({ error: 'Parâmetros obrigatórios faltando' });
     }
 
-    // 2) busca o PFX no banco e extrai PEMs
+    // 1) Recupera o certificado (base64 + senha) do banco
     const cert = await buscarCertificado(certificadoId);
-    if (!cert) return res.status(404).json({ error: 'Certificado não encontrado' });
-    const { keyPem, certPem } = pfxToPem(
-      Buffer.from(cert.certificado_base64, 'base64'),
-      cert.senha_certificado
-    );
+    if (!cert) {
+      return res.status(404).json({ error: 'Certificado não encontrado' });
+    }
 
-    // 3) monta o XML puro de distDFeInt e assina
+    // 2) Converte para Buffer e extrai a senha
+    const pfxBuffer = Buffer.from(cert.certificado_base64, 'base64');
+    const senhaCertificado = cert.senha_certificado;
+
+    // 3) Gera o XML puro de <distDFeInt>
     const xmlDist = createDistDFeIntXML({
-      tpAmb:   ambiente === 'producao' ? '1' : '2',
-      cUFAutor:'35',
-      CNPJ:    cnpjConsultado,
-      ultNSU:  '000000000000000',
+      tpAmb: ambiente === 'producao' ? '1' : '2',
+      cUFAutor: '35',
+      CNPJ: cnpjConsultado,
+      ultNSU: '000000000000000',
     });
-    let xmlAssinado = assinarXML(xmlDist, keyPem, certPem);
 
-    // **4) strip de qualquer <?xml ...?> que tenha vindo junto**
-    xmlAssinado = xmlAssinado.replace(/^<\?xml[^>]*\?>\s*/, '');
-
-    // 5) chama o serviço SOAP de Distribuição DFe
-    const resposta = await consultarDistribuicaoDFe({
-      certificadoBuffer: Buffer.from(cert.certificado_base64, 'base64'),
-      senhaCertificado:  cert.senha_certificado,
-      xmlAssinado,
+    // 4) Chama o serviço de Distribuição de DF‑e (SOAP 1.1)
+    const respostaXml = await consultarDistribuicaoDFe({
+      certificadoBuffer: pfxBuffer,
+      senhaCertificado,
+      xmlDist,
       ambiente,
     });
 
-    res.json({ success: true, raw: resposta });
+    // 5) Parseia a resposta e extrai docs
+    const resultado = await parseResponse(respostaXml);
+
+    // 6) Retorna JSON com metadados e lista de docs
+    return res.json({ success: true, ...resultado });
+
   } catch (e) {
     console.error('Erro ao consultar SEFAZ:', e);
-    res.status(500).json({ error: e.message });
+    return res.status(500).json({ error: e.message });
   }
 });
 
