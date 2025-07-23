@@ -41,17 +41,29 @@ app.use(cors({
 // Habilita parsing JSON para ler req.body nas rotas
 app.use(express.json());
 
-// Rotas
-app.use('/api/certificados', certificadosRoutes);   // <- Primeiras rotas de API
-app.use('/api/sefaz', sefazConsultaRoutes);
-// app.use('/api/sefaz/status', sefazStatusRouter);
-app.use('/api/status', sefazStatusRouter); // chamada de API correta
-app.use('/', uploadCertRouter);                      // <- GENÉRICO, DEIXE POR ÚLTIMO!
-app.use('/api/sefaz', sefazDownloadRouter);
+// Rotas (mantenha esta ordem)
+app.use('/api/certificados', certificadosRoutes);
+
+// Tudo que começa por /api/sefaz
+app.use('/api/sefaz', sefazConsultaRoutes);   // consulta DF‑e
+app.use('/api/sefaz', sefazDownloadRouter);   // download XML/zip
+// (não repita sefaz-consulta aqui embaixo)
+
+// Status‑serviço separado
+app.use('/api/status', sefazStatusRouter);
+
+// Upload de certificados (fica por último, rota genérica)
+app.use('/', uploadCertRouter);
 
 // Rota raiz simples para teste
 app.get('/', (req, res) => {
   res.send('Backend SEFAZ rodando OK!');
+});
+
+// 404 para tudo que não casou
+app.use((req, res) => {
+  console.warn('404 não capturado:', req.method, req.originalUrl);
+  res.status(404).json({ error: 'Rota não encontrada' });
 });
 
 // Health check
