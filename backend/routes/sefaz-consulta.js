@@ -27,11 +27,11 @@ function assinarXML(xml, keyPem, certPem) {
 
   /* routes/sefaz-consulta.js  – dentro de assinarXML */
 
-sig.addReference(
-  "//*[local-name(.)='distDFeInt']",
-  ['http://www.w3.org/2000/09/xmldsig#enveloped-signature'],
-  'http://www.w3.org/2000/09/xmldsig#sha1'
-);
+  sig.addReference(
+    "//*[local-name(.)='distDFeInt']",
+    ['http://www.w3.org/2000/09/xmldsig#enveloped-signature'],
+    'http://www.w3.org/2000/09/xmldsig#sha1'
+  );
 
   sig.signingKey = keyPem;
 
@@ -73,10 +73,11 @@ router.post('/consulta', async (req, res) => {
 
     /* 3. monta XML distDFeInt */
     const xmlDist = createDistDFeIntXML({
-      tpAmb   : ambiente === 'producao' ? '1' : '2',
+      tpAmb: ambiente === 'producao' ? '1' : '2',
       cUFAutor: '35',
-      CNPJ    : cnpjConsultado,
-      distNSU:  '000000000000000'
+      CNPJ: cnpjConsultado,
+      // aqui PASSAMOS o XML correto para dentro da tag <distNSU>
+      distNSU: '<ultNSU>000000000000000</ultNSU>'
     });
 
     /* 4. assina */
@@ -85,7 +86,7 @@ router.post('/consulta', async (req, res) => {
     /* 5. chama SEFAZ */
     const resposta = await consultarDistribuicaoDFe({
       certificadoBuffer: Buffer.from(cert.certificado_base64, 'base64'),
-      senhaCertificado : cert.senha_certificado,
+      senhaCertificado: cert.senha_certificado,
       xmlAssinado,
       ambiente
     });

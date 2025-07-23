@@ -10,9 +10,9 @@ console.log('>>> ENV SEFAZ_DIST_PROD_URL =', process.env.SEFAZ_DIST_PROD_URL);
 
 const axios = require('axios');
 const https = require('https');
-const tls   = require('node:tls');
-const fs    = require('fs');
-const path  = require('path');
+const tls = require('node:tls');
+const fs = require('fs');
+const path = require('path');
 
 // 1) Endpoints oficiais (sobrescreva via .env se quiser)
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
@@ -42,8 +42,8 @@ function createAgentFromBuffer(pfxBuffer, passphrase) {
   tls.createSecureContext({ pfx: pfxBuffer, passphrase });
 
   return new https.Agent({
-    pfx:                pfxBuffer,
-    passphrase:         passphrase,
+    pfx: pfxBuffer,
+    passphrase: passphrase,
     // Para *ignorar* falhas no certificado do servidor (não recomendado em produção!):
     rejectUnauthorized: false,
   });
@@ -51,18 +51,17 @@ function createAgentFromBuffer(pfxBuffer, passphrase) {
 
 
 // 4) Gera <distDFeInt> XML “puro” (sem o envelope SOAP)
-function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
+function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, distNSU }) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
   <tpAmb>${tpAmb}</tpAmb>
   <cUFAutor>${cUFAutor}</cUFAutor>
   <CNPJ>${CNPJ}</CNPJ>
   <distNSU>
-    <ultNSU>${ultNSU}</ultNSU>
+    ${distNSU}
   </distNSU>
 </distDFeInt>`;
 }
-
 // 5) Distribuição DF‑e (SOAP 1.2, mTLS)
 async function consultarDistribuicaoDFe({
   certificadoBuffer,
@@ -71,7 +70,7 @@ async function consultarDistribuicaoDFe({
   ambiente = 'producao',
 }) {
   const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
-  const url        = ambiente === 'producao' ? URL_DIST_PROD : URL_DIST_HOMO;
+  const url = ambiente === 'producao' ? URL_DIST_PROD : URL_DIST_HOMO;
   console.log(`🔗 Distribuição DF‑e → ${url}`);
 
   // Envelope SOAP completo com wrapper nfeDistDFeInteresse
@@ -109,8 +108,8 @@ async function consultarStatusSefaz(
   cUF = '35'
 ) {
   const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
-  const tpAmb      = ambiente === 'producao' ? '1' : '2';
-  const url        = ambiente === 'producao' ? URL_STATUS_PROD : URL_STATUS_HOMO;
+  const tpAmb = ambiente === 'producao' ? '1' : '2';
+  const url = ambiente === 'producao' ? URL_STATUS_PROD : URL_STATUS_HOMO;
   console.log(`🔗 Status‑Serviço → ${url}`);
 
   const xmlDados = `
@@ -140,9 +139,9 @@ async function consultarStatusSefaz(
     timeout: 15000,
   });
 
-  const cStat   = (xmlResposta.match(/<cStat>(\d+)<\/cStat>/)       || [])[1] || null;
+  const cStat = (xmlResposta.match(/<cStat>(\d+)<\/cStat>/) || [])[1] || null;
   const xMotivo = (xmlResposta.match(/<xMotivo>([^<]+)<\/xMotivo>/) || [])[1] || null;
-  const sucesso = ['107','108','109','111'].includes(cStat);
+  const sucesso = ['107', '108', '109', '111'].includes(cStat);
 
   return {
     sucesso,
