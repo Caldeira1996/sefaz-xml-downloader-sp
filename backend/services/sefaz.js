@@ -6,6 +6,7 @@
 // ────────────────────────────────────────────────────────────────
 
 require('dotenv').config();
+console.log('>>> ENV SEFAZ_DIST_PROD_URL =', process.env.SEFAZ_DIST_PROD_URL);
 
 const axios = require('axios');
 const https = require('https');
