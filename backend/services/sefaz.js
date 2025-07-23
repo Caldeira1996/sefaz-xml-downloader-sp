@@ -71,6 +71,7 @@ async function consultarDistribuicaoDFe({
 }) {
   const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
   const url        = ambiente === 'producao' ? URL_DIST_PROD : URL_DIST_HOMO;
+  console.log(`🔗 Distribuição DF‑e → ${url}`);   // linha de debug
 
   const envelopeSoap = `
 <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
@@ -104,6 +105,7 @@ async function consultarStatusSefaz(
   const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
   const tpAmb      = ambiente === 'producao' ? '1' : '2';
   const url        = ambiente === 'producao' ? URL_STATUS_PROD : URL_STATUS_HOMO;
+  console.log(`🔗 Distribuição DF‑e → ${url}`);   // linha de debug
 
   const xmlDados = `
 <consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
