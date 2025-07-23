@@ -5,8 +5,6 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const ca = fs.readFileSync(path.join(__dirname, '../certs/sectigo-chain.pem'));
-
 // Endpoints de Distribuição de DF‑e
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
   'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
@@ -33,6 +31,7 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
  * Aqui desativamos a validação do certificado do servidor (rejectUnauthorized: false).
  */
 async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, xmlDist, ambiente }) {
+  const ca = fs.readFileSync(path.join(__dirname, '../certs/icp-chain.pem'));
   const agent = new https.Agent({
     pfx: certificadoBuffer,     // seu PFX de cliente
     passphrase: senhaCertificado,
