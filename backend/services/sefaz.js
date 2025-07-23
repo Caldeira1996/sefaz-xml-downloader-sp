@@ -8,7 +8,11 @@
 require('dotenv').config();           // carrega o .env
 const axios = require('axios');
 const https = require('https');
+
 const fs    = require('fs');
+fs.writeFileSync('/tmp/test.pfx', certificadoBuffer);
+console.log('PFX exportado em /tmp/test.pfx');
+
 const path  = require('path');
 
 const tls   = require('node:tls');
