@@ -1,50 +1,63 @@
-// ────────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────
 // services/sefaz.js
-// Requisita SEFAZ (Status‑Serviço e Distribuição DF‑e) com certificado A1
-// ────────────────────────────────────────────────────────────────────────────────
+//  • Consulta Status‑Serviço  (SOAP 1.2)
+//  • Distribuição DF‑e        (SOAP 1.2)
+//  • Usa certificado A1 (PFX) + cadeia de CAs (ca‑chain.pem)
+// ────────────────────────────────────────────────────────────────
 
+require('dotenv').config();           // garante que process.env já está populado
 const axios  = require('axios');
 const https  = require('https');
 const fs     = require('fs');
 const path   = require('path');
 
-// ── loga toda requisição SOAP para debug (opcional) ─────────────────────────────
+/* ------------------------------------------------------------------
+ * 1) Constantes (podem vir do .env)
+ * ----------------------------------------------------------------*/
+const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
+  'https://www.nfe.fazenda.gov.br/ws/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
+const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL ||
+  'https://homologacao.nfe.fazenda.gov.br/ws/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
+
+const URL_STATUS_PROD = process.env.SEFAZ_PRODUCAO_URL ||
+  'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx';
+const URL_STATUS_HOMO = process.env.SEFAZ_HOMOLOGACAO_URL ||
+  'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx';
+
+/* ------------------------------------------------------------------
+ * 2) Interceptor opcional: loga a requisição SOAP
+ * ----------------------------------------------------------------*/
 axios.interceptors.request.use(conf => {
   if (
-    conf.url.includes('NFeStatusServico4.asmx') ||
-    conf.url.includes('NFeDistribuicaoDFe.asmx')
+    conf.url.includes('StatusServico') ||
+    conf.url.includes('DistribuicaoDFe')
   ) {
-    console.log('\n--- REQ ENVIADA ---');
+    console.log('\n--- REQ ENVIADA --------------------------------');
     console.log('URL          :', conf.url);
-    console.log(
-      'Content-Type :',
-      conf.headers['Content-Type'] || conf.headers['content-type']
-    );
-    console.log('Primeiros 120 bytes do body:\n', conf.data.slice(0, 120), '...\n');
+    console.log('Content-Type :', conf.headers['Content-Type'] || conf.headers['content-type']);
+    console.log('Primeiros 120 bytes:\n', conf.data.slice(0, 120), '...\n');
   }
   return conf;
 });
 
-/*────────────────────────────────────────────────────────────────────────────────
-  Helper: cria um https.Agent a partir do PFX e lê a cadeia de CA toda vez
-────────────────────────────────────────────────────────────────────────────────*/
+/* ------------------------------------------------------------------
+ * 3) Cria https.Agent a partir do PFX (+ CA em runtime)
+ * ----------------------------------------------------------------*/
 function createAgentFromBuffer(pfxBuffer, senha) {
-  const ca = fs.readFileSync(
-    path.join(__dirname, '../certs/ca-chain.pem'),
-    'utf8'
-  );
+  const caPath = path.join(__dirname, '../certs/ca-chain.pem');
+  const caPem  = fs.readFileSync(caPath, 'utf8');        // lido a cada call
 
   return new https.Agent({
-    pfx: pfxBuffer,
-    passphrase: senha,
-    ca,
-    rejectUnauthorized: true   // produção: true
+    pfx : pfxBuffer,
+    passphrase : senha,
+    ca  : caPem,
+    rejectUnauthorized : true          // produção segura
   });
 }
 
-/*───────────────────────────────────────────────────────────────────────────────
-  1) XML helper para Distribuição DF‑e
-───────────────────────────────────────────────────────────────────────────────*/
+/* ------------------------------------------------------------------
+ * 4) Helper para gerar <distDFeInt>
+ * ----------------------------------------------------------------*/
 function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, distNSU }) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
@@ -55,22 +68,18 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, distNSU }) {
 </distDFeInt>`;
 }
 
-/*───────────────────────────────────────────────────────────────────────────────
-  1) Consulta Distribuição DF‑e  (SOAP 1.2)
-───────────────────────────────────────────────────────────────────────────────*/
+/* ------------------------------------------------------------------
+ * 5) Distribuição DF‑e (SOAP 1.2)
+ * ----------------------------------------------------------------*/
 async function consultarDistribuicaoDFe({
   certificadoBuffer,
   senhaCertificado,
   xmlAssinado,
-  ambiente
+  ambiente = 'producao'
 }) {
   const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
 
-  // ⬇️  ENDPOINTS CORRETOS (sem /ws/ e com Nfe maiúsculo)
-  const url =
-    ambiente === 'producao'
-      ? 'https://www.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx'
-      : 'https://homologacao.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
+  const url = ambiente === 'producao' ? URL_DIST_PROD : URL_DIST_HOMO;
 
   const envelopeSoap = `
 <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
@@ -91,32 +100,29 @@ async function consultarDistribuicaoDFe({
     timeout: 15000
   });
 
-  return data;
+  return data;               // devolve XML bruto
 }
 
-/*───────────────────────────────────────────────────────────────────────────────
-  2) Consulta Status do Serviço (SOAP 1.2)
-───────────────────────────────────────────────────────────────────────────────*/
+/* ------------------------------------------------------------------
+ * 6) Status Serviço (SOAP 1.2)
+ * ----------------------------------------------------------------*/
 async function consultarStatusSefaz(
   certificadoBuffer,
   senhaCertificado,
-  ambiente,
-  cUF = '35'           // 35 = SP
+  ambiente = 'producao',
+  cUF = '35'                     // SP default
 ) {
   const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
   const tpAmb      = ambiente === 'producao' ? '1' : '2';
 
-  const url =
-    ambiente === 'producao'
-      ? 'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx'
-      : 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx';
+  const url = ambiente === 'producao' ? URL_STATUS_PROD : URL_STATUS_HOMO;
 
-  const xmlDados = `
-<consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
-  <tpAmb>${tpAmb}</tpAmb>
-  <cUF>${cUF}</cUF>
-  <xServ>STATUS</xServ>
-</consStatServ>`.trim();
+  const xmlDados =
+    `<consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">` +
+      `<tpAmb>${tpAmb}</tpAmb>` +
+      `<cUF>${cUF}</cUF>` +
+      `<xServ>STATUS</xServ>` +
+    `</consStatServ>`;
 
   const envelopeSoap =
     '<?xml version="1.0" encoding="utf-8"?>' +
@@ -138,6 +144,7 @@ async function consultarStatusSefaz(
     timeout: 15000
   });
 
+  // extrai campos principais
   const cStat   = (xmlResposta.match(/<cStat>(\d+)<\/cStat>/)   || [])[1] || null;
   const xMotivo = (xmlResposta.match(/<xMotivo>([^<]+)<\/xMotivo>/)|| [])[1] || null;
   const sucesso = ['107', '108', '109', '111'].includes(cStat);
@@ -151,9 +158,9 @@ async function consultarStatusSefaz(
   };
 }
 
-/*───────────────────────────────────────────────────────────────────────────────
-  Exporta
-───────────────────────────────────────────────────────────────────────────────*/
+/* ------------------------------------------------------------------
+ * 7) Exports
+ * ----------------------------------------------------------------*/
 module.exports = {
   createAgentFromBuffer,
   createDistDFeIntXML,
