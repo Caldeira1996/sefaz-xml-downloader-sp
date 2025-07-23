@@ -51,17 +51,18 @@ function createAgentFromBuffer(pfxBuffer, passphrase) {
 
 
 // 4) Gera <distDFeInt> XML “puro” (sem o envelope SOAP)
-function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, distNSU }) {
+function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
   <tpAmb>${tpAmb}</tpAmb>
   <cUFAutor>${cUFAutor}</cUFAutor>
   <CNPJ>${CNPJ}</CNPJ>
   <distNSU>
-    ${distNSU}
+    <ultNSU>${ultNSU}</ultNSU>
   </distNSU>
 </distDFeInt>`;
 }
+
 // 5) Distribuição DF‑e (SOAP 1.2, mTLS)
 async function consultarDistribuicaoDFe({
   certificadoBuffer,

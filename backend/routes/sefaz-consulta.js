@@ -76,8 +76,8 @@ router.post('/consulta', async (req, res) => {
       tpAmb: ambiente === 'producao' ? '1' : '2',
       cUFAutor: '35',
       CNPJ: cnpjConsultado,
-      // aqui PASSAMOS o XML correto para dentro da tag <distNSU>
-      distNSU: '<ultNSU>000000000000000</ultNSU>'
+      // agora passamos o valor em "ultNSU", que é o que a função espera
+      ultNSU: '000000000000000'
     });
 
     /* 4. assina */
