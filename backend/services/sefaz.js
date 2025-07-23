@@ -1,31 +1,32 @@
-// ────────────────────────────────────────────────────────────────
 // services/sefaz.js
+// ────────────────────────────────────────────────────────────────
 //  • Consulta Status‑Serviço  (SOAP 1.2)
 //  • Distribuição DF‑e        (SOAP 1.2)
+//  • Usa certificado A1 (PFX) via HTTPS Client Certificate
 // ────────────────────────────────────────────────────────────────
 
 require('dotenv').config();
 
-const axios  = require('axios');
-const https  = require('https');
-const tls    = require('node:tls');
-const fs     = require('fs');
-const path   = require('path');
+const axios = require('axios');
+const https = require('https');
+const tls   = require('node:tls');
+const fs    = require('fs');
+const path  = require('path');
 
 // 1) Endpoints oficiais (sobrescreva via .env se quiser)
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
   'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
-const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL ??
+const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL ||
   'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 
-const URL_STATUS_PROD = process.env.SEFAZ_PRODUCAO_URL ??
+const URL_STATUS_PROD = process.env.SEFAZ_PRODUCAO_URL ||
   'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx';
-const URL_STATUS_HOMO = process.env.SEFAZ_HOMOLOGACAO_URL ??
+const URL_STATUS_HOMO = process.env.SEFAZ_HOMOLOGACAO_URL ||
   'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx';
 
 // 2) (Opcional) log das requisições SOAP
 axios.interceptors.request.use(conf => {
-  if (conf.url.includes('StatusServico') || conf.url.includes('DistribuicaoDFe')) {
+  if (conf.url.includes('NFeDistribuicaoDFe') || conf.url.includes('StatusServico')) {
     console.log('\n--- REQ ENVIADA ---');
     console.log('URL          :', conf.url);
     console.log('Content-Type :', conf.headers['Content-Type'] || conf.headers['content-type']);
@@ -34,35 +35,31 @@ axios.interceptors.request.use(conf => {
 });
 
 // 3) Cria https.Agent a partir do PFX em memória
-function createAgentFromBuffer(pfxBuffer, senha) {
-  // Valida o PKCS#12 (lança se senha errada ou RC2/RC4 em Node 18+/OpenSSL 3)
-  tls.createSecureContext({ pfx: pfxBuffer, passphrase: senha });
-
-  const caPem = fs.readFileSync(
-    path.join(__dirname, '../certs/ca-chain.pem'),
-    'utf8'
-  );
+function createAgentFromBuffer(pfxBuffer, passphrase) {
+  // Valida o PKCS#12 (lança se senha errada ou PFX com algoritmo obsoleto)
+  tls.createSecureContext({ pfx: pfxBuffer, passphrase });
 
   return new https.Agent({
-    pfx:                pfxBuffer,
-    passphrase:         senha,
-    ca:                 caPem,
+    pfx:            pfxBuffer,
+    passphrase,
+    // ca:             fs.readFileSync(path.join(__dirname, '../certs/ca-chain.pem'), 'utf8'),
+    // ao comentar o 'ca', usa-se as raízes padrão do Node.js (Let's Encrypt, Sectigo...)
     rejectUnauthorized: true,
   });
 }
 
-// 4) Gera <distDFeInt> XML
+// 4) Gera <distDFeInt> XML “puro” (sem o envelope SOAP)
 function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, distNSU }) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
   <tpAmb>${tpAmb}</tpAmb>
   <cUFAutor>${cUFAutor}</cUFAutor>
   <CNPJ>${CNPJ}</CNPJ>
-  <distNSU>${distNSU}</distNSU>
+  ${distNSU}
 </distDFeInt>`;
 }
 
-// 5) Distribuição DF‑e
+// 5) Distribuição DF‑e (SOAP 1.2, mTLS)
 async function consultarDistribuicaoDFe({
   certificadoBuffer,
   senhaCertificado,
@@ -71,18 +68,21 @@ async function consultarDistribuicaoDFe({
 }) {
   const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
   const url        = ambiente === 'producao' ? URL_DIST_PROD : URL_DIST_HOMO;
-  console.log(`🔗 Distribuição DF‑e → ${url}`);   // linha de debug
+  console.log(`🔗 Distribuição DF‑e → ${url}`);
 
+  // Envelope SOAP completo com wrapper nfeDistDFeInteresse
   const envelopeSoap = `
 <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
   <soap12:Body>
     <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
       <nfeDadosMsg>
-        <![CDATA[${xmlAssinado}]]>
+        <![CDATA[
+          ${xmlAssinado}
+        ]]>
       </nfeDadosMsg>
     </nfeDistDFeInteresse>
   </soap12:Body>
-+</soap12:Envelope>`.trim();
+</soap12:Envelope>`.trim();
 
   const { data } = await axios.post(url, envelopeSoap, {
     httpsAgent,
@@ -97,7 +97,7 @@ async function consultarDistribuicaoDFe({
   return data;
 }
 
-// 6) Status Serviço
+// 6) Status Serviço (SOAP 1.2, mTLS)
 async function consultarStatusSefaz(
   certificadoBuffer,
   senhaCertificado,
@@ -107,20 +107,20 @@ async function consultarStatusSefaz(
   const httpsAgent = createAgentFromBuffer(certificadoBuffer, senhaCertificado);
   const tpAmb      = ambiente === 'producao' ? '1' : '2';
   const url        = ambiente === 'producao' ? URL_STATUS_PROD : URL_STATUS_HOMO;
-  console.log(`🔗 Distribuição DF‑e → ${url}`);   // linha de debug
+  console.log(`🔗 Status‑Serviço → ${url}`);
 
   const xmlDados = `
 <consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
   <tpAmb>${tpAmb}</tpAmb>
   <cUF>${cUF}</cUF>
   <xServ>STATUS</xServ>
-</consStatServ>`;
+</consStatServ>`.trim();
 
   const envelopeSoap = `
-<?xml version="1.0" encoding="utf-8"?>
 <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
   <soap12:Body>
-    <nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
+    <nfeDadosMsg
+      xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
       ${xmlDados}
     </nfeDadosMsg>
   </soap12:Body>
@@ -138,7 +138,7 @@ async function consultarStatusSefaz(
 
   const cStat   = (xmlResposta.match(/<cStat>(\d+)<\/cStat>/)       || [])[1] || null;
   const xMotivo = (xmlResposta.match(/<xMotivo>([^<]+)<\/xMotivo>/) || [])[1] || null;
-  const sucesso = ['107', '108', '109', '111'].includes(cStat);
+  const sucesso = ['107','108','109','111'].includes(cStat);
 
   return {
     sucesso,
