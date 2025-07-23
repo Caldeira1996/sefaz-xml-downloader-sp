@@ -36,10 +36,10 @@ app.use(express.json());
 
 // Rotas de API
 app.use('/api/certificados', certificadosRoutes);
-app.use('/api/sefaz',          sefazConsultaRoutes);   // consulta DF‑e
-app.use('/api/sefaz',          sefazDownloadRouter);   // download XML/zip
-app.use('/api/status',         sefazStatusRouter);     // status‑serviço
-app.use('/',                   uploadCertRouter);      // upload de PFX
+app.use('/api/sefaz',          sefazConsultaRoutes);
+app.use('/api/sefaz',          sefazDownloadRouter);
+app.use('/api/status',         sefazStatusRouter);
+app.use('/',                   uploadCertRouter);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -60,5 +60,14 @@ app.use((req, res) => {
 // Garante pasta de certificados
 const dir = process.env.CERTIFICATES_DIR || './certificates';
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+// Só dispara o HTTP server se este arquivo for executado diretamente:
+if (require.main === module) {
+  const PORT = process.env.PORT || 3001;
+  const HOST = process.env.SERVER_HOST || '0.0.0.0';
+  app.listen(PORT, HOST, () => {
+    console.log(`⚙️ HTTP rodando em http://${HOST}:${PORT}`);
+  });
+}
 
 module.exports = app;
