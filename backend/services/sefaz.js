@@ -43,7 +43,7 @@ function createAgentFromBuffer(pfxBuffer, passphrase) {
   return new https.Agent({
     pfx:            pfxBuffer,
     passphrase,
-    // ca:             fs.readFileSync(path.join(__dirname, '../certs/ca-chain.pem'), 'utf8'),
+    ca:             fs.readFileSync(path.join(__dirname, '../certs/ca-chain.pem'), 'utf8'),
     // ao comentar o 'ca', usa-se as raízes padrão do Node.js (Let's Encrypt, Sectigo...)
     rejectUnauthorized: true,
   });
