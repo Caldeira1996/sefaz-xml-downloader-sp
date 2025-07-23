@@ -37,42 +37,36 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
   }, []);
 
   const carregarCertificados = async () => {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://xmlprodownloader.com.br'}/api/certificados`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+  try {
+    /* 1.  GET em vez de POST (sem headers/body) */
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://xmlprodownloader.com.br'}/api/certificados`
+    );
+    if (!res.ok) throw new Error('Erro ao carregar certificados');
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'Erro ao carregar certificados');
-      }
+    /* 2.  extrai do wrapper */
+    const { certificados = [] } = await res.json() as {
+      sucesso: boolean;
+      certificados: Certificado[];
+    };
 
-      const data: Certificado[] = await res.json();
+    certificados.sort((a, b) =>
+      a.is_principal === b.is_principal ? 0 : a.is_principal ? -1 : 1
+    );
+    setCertificados(certificados);
 
-      data.sort((a, b) => {
-        if (a.is_principal === b.is_principal) {
-          return 0;
-        }
-        return a.is_principal ? -1 : 1;
-      });
-
-      setCertificados(data);
-
-      const certificadoPrincipal = data.find(cert => cert.is_principal);
-      if (certificadoPrincipal && !certificadoSelecionado) {
-        setCertificadoSelecionado(certificadoPrincipal.id);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Erro ao carregar certificados",
-        description: error.message,
-        variant: "destructive",
-      });
+    const principal = certificados.find(c => c.is_principal);
+    if (principal && !certificadoSelecionado) {
+      setCertificadoSelecionado(String(principal.id));   // garante string
     }
-  };
+  } catch (err: any) {
+    toast({
+      title: 'Erro ao carregar certificados',
+      description: err.message,
+      variant: 'destructive',
+    });
+  }
+};
 
   const handleConsulta = async (tipoConsulta: 'manifestacao' | 'download_nfe') => {
     if (!certificadoSelecionado || !cnpjConsulta) {
@@ -196,7 +190,7 @@ export const ConsultaForm = ({ onConsultaIniciada }: { onConsultaIniciada: () =>
               </SelectTrigger>
               <SelectContent>
                 {certificados.map((cert) => (
-                  <SelectItem key={cert.id} value={cert.id}>
+                  <SelectItem key={cert.id} value={String(cert.id)}>
                     <div className="flex items-center gap-2">
                       {cert.is_principal && <ShieldCheck className="h-4 w-4 text-primary" />}
                       <span>{cert.nome} - {formatCnpj(cert.cnpj)} ({cert.ambiente})</span>
