@@ -41,13 +41,13 @@ app.use('/api/sefaz',          sefazDownloadRouter);
 app.use('/api/status',         sefazStatusRouter);
 app.use('/',                   uploadCertRouter);
 
-// Health check (antes do catch‑all)
+// Health check
 app.get('/health', (req, res) => {
   res.json({
-    status:   'OK',
-    servidor: 'Proxy SEFAZ SP',
-    timestamp:new Date().toISOString(),
-    ambiente: process.env.NODE_ENV || 'development',
+    status:    'OK',
+    servidor:  'Proxy SEFAZ SP',
+    timestamp: new Date().toISOString(),
+    ambiente:  process.env.NODE_ENV || 'development',
   });
 });
 

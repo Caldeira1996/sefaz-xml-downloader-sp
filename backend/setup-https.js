@@ -1,8 +1,8 @@
 // server-https.js
 require('dotenv').config();
-const https      = require('https');
-const path       = require('path');
-const app        = require('./server');      // o Express puro
+const https        = require('https');
+const path         = require('path');
+const app          = require('./server');         // importa o express sem listen
 const { setupHTTPS } = require('./setup-https');
 
 const PORT = parseInt(process.env.HTTPS_PORT || '3002', 10);
