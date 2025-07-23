@@ -60,7 +60,7 @@ router.post('/download-xml', async (req, res) => {
       passphrase: cert.senha_certificado,
       rejectUnauthorized: true,
       // Se precisar adicionar cadeia, descomente:
-      // ca: fs.readFileSync('caminho/ca-chain.pem')
+      // ca: fs.readFileSync('caminho/chain.pem')
     });
 
     // 6. Endpoint correto para distribuição NF-e

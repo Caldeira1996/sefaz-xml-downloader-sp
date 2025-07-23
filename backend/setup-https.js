@@ -6,7 +6,7 @@ const https = require('https');
 const certDir  = path.join(__dirname, 'certs');
 const certPath = path.join(certDir, 'client-cert.pem');
 const keyPath  = path.join(certDir, 'client-key.pem');
-const caPath   = path.join(certDir, 'ca-chain.pem');
+const caPath   = path.join(certDir, 'chain.pem');
 
 function setupHTTPS() {
   if (fs.existsSync(certPath) && fs.existsSync(keyPath) && fs.existsSync(caPath)) {
