@@ -16,17 +16,22 @@ const router = express.Router();
  * Assina <distDFeInt> com a chave PEM extraída do PFX
  *  – usa API nova do xml‑crypto (objeto de opções)
  * ----------------------------------------------------------------*/
+/* ------------------------------------------------------------------
+ * Troque apenas este bloco em routes/sefaz-consulta.js
+ * ----------------------------------------------------------------*/
 function assinarXML(xml, keyPem, certPem) {
   const sig = new SignedXml();
 
-  sig.signatureAlgorithm = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1';
+  sig.signatureAlgorithm =
+    'http://www.w3.org/2000/09/xmldsig#rsa-sha1';
 
-  // ← três parâmetros: transforms, digestAlgorithm
-  sig.addReference(
-    "//*[local-name(.)='distDFeInt']",
-    ['http://www.w3.org/2000/09/xmldsig#enveloped-signature'],
-    'http://www.w3.org/2000/09/xmldsig#sha1'
-  );
+  sig.addReference("//*[local-name(.)='distDFeInt']", {
+    transforms: [
+      'http://www.w3.org/2000/09/xmldsig#enveloped-signature'
+    ],
+    digestAlgorithm:
+      'http://www.w3.org/2000/09/xmldsig#sha1'
+  });
 
   sig.signingKey = keyPem;
 
@@ -43,7 +48,6 @@ function assinarXML(xml, keyPem, certPem) {
   sig.computeSignature(xml);
   return sig.getSignedXml();
 }
-
 
 /* ------------------------------------------------------------------
  * POST  /api/sefaz/consulta
