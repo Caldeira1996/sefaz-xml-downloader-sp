@@ -5,6 +5,10 @@ const https = require('https');
 const fs    = require('fs');
 const path  = require('path');
 
+// Carregue root e intermediário do Sectigo em arquivos separados:
+const caRoot = fs.readFileSync(path.join(__dirname, '../certs/cert-02.pem'));
+const caInt  = fs.readFileSync(path.join(__dirname, '../certs/cert-01.pem'));
+
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
   'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL ||
@@ -23,15 +27,12 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
 }
 
 async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, xmlDist, ambiente }) {
-  // 1) Carrega a cadeia Sectigo correta
-  const ca = fs.readFileSync(path.join(__dirname, '../certs/sectigo-chain.pem'));
-
-  // 2) Cria o Agent mTLS **com validação** do servidor
+  // 2) Cria o Agent mTLS com a cadeia correta (root primeiro, depois intermediário)
   const agent = new https.Agent({
     pfx:                certificadoBuffer,
     passphrase:         senhaCertificado,
-    ca,                  // <<< descomentado e apontando para sectigo-chain.pem
-    rejectUnauthorized: true // <<< valida o cert do servidor WWW1
+    ca:                 [caRoot, caInt],
+    rejectUnauthorized: true
   });
 
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
@@ -53,7 +54,8 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
     httpsAgent: agent,
     headers: {
       'Content-Type': 'text/xml; charset=utf-8',
-      'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
+      'SOAPAction':
+        '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
     },
     timeout: 30000,
   });
@@ -61,4 +63,7 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
   return data;
 }
 
-module.exports = { createDistDFeIntXML, consultarDistribuicaoDFe };
+module.exports = {
+  createDistDFeIntXML,
+  consultarDistribuicaoDFe
+};
