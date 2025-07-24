@@ -8,8 +8,7 @@ const fs    = require('fs');
 const path  = require('path');
 
 // Carregue root e intermediário do Sectigo
-const caRoot = fs.readFileSync(path.join(__dirname, '../certs/cert-02.pem'));
-const caInt  = fs.readFileSync(path.join(__dirname, '../certs/cert-01.pem'));
+const caBundle = fs.readFileSync(path.join(__dirname, '../certs/sectigo-chain.pem'));
 
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
   'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
@@ -33,7 +32,7 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
   const agent = new https.Agent({
     pfx:                certificadoBuffer,
     passphrase:         senhaCertificado,
-    ca:                 [caRoot, caInt],
+    ca:                 caBundle,
     rejectUnauthorized: true
   });
 
