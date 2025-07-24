@@ -1,24 +1,17 @@
-// services/sefaz.js
 require('dotenv').config();
 const axios  = require('axios');
 const https  = require('https');
 const fs     = require('fs');
 const path   = require('path');
 
-// Carrega o bundle de CA (raiz + intermediária Sectigo)
-const caBundle = fs.readFileSync(
-  path.join(__dirname, '../certs/ca-bundle.pem'),
-  'utf-8'
-);
+// 1) Bundle de CA (root + intermediária) como Buffer
+const caBundle = fs.readFileSync(path.join(__dirname, '../certs/ca-bundle.pem'));
 
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
   'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL ||
   'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 
-/**
- * Gera o XML puro de <distDFeInt> sem assinatura interna.
- */
 function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
@@ -31,17 +24,16 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
 </distDFeInt>`;
 }
 
-/**
- * Consulta Distribuição DFe usando mTLS e validando o cert. do servidor.
- */
 async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, xmlDist, ambiente }) {
+  // 2) Agent *igualzinho* ao do seu test
   const agent = new https.Agent({
     pfx:                certificadoBuffer,
     passphrase:         senhaCertificado,
-    ca:                 caBundle,       // bundle da Sectigo
-    rejectUnauthorized: true            // valida o certificado do SEFAZ
+    ca:                 caBundle,
+    rejectUnauthorized: true
   });
 
+  // 3) Envelope SOAP com CDATA em volta do XML puro
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope
   xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
@@ -50,7 +42,9 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
   <soap:Body>
     <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
       <nfeDadosMsg>
-        ${xmlDist}
+        <![CDATA[
+          ${xmlDist}
+        ]]>
       </nfeDadosMsg>
     </nfeDistDFeInteresse>
   </soap:Body>
@@ -61,7 +55,7 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
     httpsAgent: agent,
     headers: {
       'Content-Type': 'text/xml; charset=utf-8',
-      'SOAPAction':    '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"'
+      'SOAPAction':    '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
     },
     timeout: 30000
   });
