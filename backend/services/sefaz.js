@@ -39,7 +39,7 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
     pfx:                certificadoBuffer,
     passphrase:         senhaCertificado,
     ca:                 caBundle,       // bundle da Sectigo
-    rejectUnauthorized: false            // valida o certificado do SEFAZ
+    rejectUnauthorized: true            // valida o certificado do SEFAZ
   });
 
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
