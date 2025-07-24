@@ -7,8 +7,10 @@ const https = require('https');
 const fs    = require('fs');
 const path  = require('path');
 
-// Carregue root e intermediário do Sectigo
-const caBundle = fs.readFileSync(path.join(__dirname, '../certs/sectigo-chain.pem'));
+// Carrega o bundle (raiz+intermediária)
+const caBundle = fs.readFileSync(
+  path.join(__dirname, '../certs/ca-bundle.pem')
+);
 
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
   'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
@@ -28,17 +30,16 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
 }
 
 async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, xmlDist, ambiente }) {
-  // 1) Monta o agent mTLS com root + intermediário
+  // monta o agent mTLS com validação
   const agent = new https.Agent({
-    pfx:                certificadoBuffer,
-    passphrase:         senhaCertificado,
-    ca:                 caBundle,
+    pfx:              certificadoBuffer,
+    passphrase:       senhaCertificado,
+    ca:               caBundle,
     rejectUnauthorized: true
   });
 
-  console.log('> [tls] usando CAs:', path.join(__dirname, '../certs/cert-02.pem'), '&', path.join(__dirname, '../certs/cert-01.pem'));
+  console.log('> [tls] usando ca-bundle.pem');
 
-  // 2) Envia o envelope SOAP
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope
   xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
@@ -58,7 +59,8 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
     httpsAgent: agent,
     headers: {
       'Content-Type': 'text/xml; charset=utf-8',
-      'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
+      'SOAPAction':
+        '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
     },
     timeout: 30000,
   });
