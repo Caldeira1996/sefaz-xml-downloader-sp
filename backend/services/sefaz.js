@@ -1,11 +1,13 @@
 // services/sefaz.js
 require('dotenv').config();
+process.env.NODE_DEBUG = (process.env.NODE_DEBUG || '') + ',tls';
+
 const axios = require('axios');
 const https = require('https');
 const fs    = require('fs');
 const path  = require('path');
 
-// Carregue root e intermediário do Sectigo em arquivos separados:
+// Carregue root e intermediário do Sectigo
 const caRoot = fs.readFileSync(path.join(__dirname, '../certs/cert-02.pem'));
 const caInt  = fs.readFileSync(path.join(__dirname, '../certs/cert-01.pem'));
 
@@ -27,7 +29,7 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
 }
 
 async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, xmlDist, ambiente }) {
-  // 2) Cria o Agent mTLS com a cadeia correta (root primeiro, depois intermediário)
+  // 1) Monta o agent mTLS com root + intermediário
   const agent = new https.Agent({
     pfx:                certificadoBuffer,
     passphrase:         senhaCertificado,
@@ -35,6 +37,9 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
     rejectUnauthorized: true
   });
 
+  console.log('> [tls] usando CAs:', path.join(__dirname, '../certs/cert-02.pem'), '&', path.join(__dirname, '../certs/cert-01.pem'));
+
+  // 2) Envia o envelope SOAP
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope
   xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
@@ -54,8 +59,7 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
     httpsAgent: agent,
     headers: {
       'Content-Type': 'text/xml; charset=utf-8',
-      'SOAPAction':
-        '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
+      'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
     },
     timeout: 30000,
   });
@@ -63,7 +67,4 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
   return data;
 }
 
-module.exports = {
-  createDistDFeIntXML,
-  consultarDistribuicaoDFe
-};
+module.exports = { createDistDFeIntXML, consultarDistribuicaoDFe };
