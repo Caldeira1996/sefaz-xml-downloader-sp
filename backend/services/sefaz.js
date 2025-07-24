@@ -1,11 +1,14 @@
+// services/sefaz.js
 require('dotenv').config();
-const axios  = require('axios');
-const https  = require('https');
-const fs     = require('fs');
-const path   = require('path');
+const axios = require('axios');
+const https = require('https');
+const fs    = require('fs');
+const path  = require('path');
 
-// 1) Bundle de CA (root + intermediária) como Buffer
-const caBundle = fs.readFileSync(path.join(__dirname, '../certs/ca-bundle.pem'));
+// carrega o bundle raiz+intermediária do Sectigo que você montou
+const caBundle = fs.readFileSync(
+  path.join(__dirname, '../certs/ca-bundle.pem')
+);
 
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
   'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
@@ -25,7 +28,6 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
 }
 
 async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, xmlDist, ambiente }) {
-  // 2) Agent *igualzinho* ao do seu test
   const agent = new https.Agent({
     pfx:                certificadoBuffer,
     passphrase:         senhaCertificado,
@@ -33,7 +35,6 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
     rejectUnauthorized: true
   });
 
-  // 3) Envelope SOAP com CDATA em volta do XML puro
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope
   xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
@@ -42,9 +43,7 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
   <soap:Body>
     <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
       <nfeDadosMsg>
-        <![CDATA[
-          ${xmlDist}
-        ]]>
+        ${xmlDist}
       </nfeDadosMsg>
     </nfeDistDFeInteresse>
   </soap:Body>
@@ -55,9 +54,10 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
     httpsAgent: agent,
     headers: {
       'Content-Type': 'text/xml; charset=utf-8',
-      'SOAPAction':    '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
+      'SOAPAction':
+        '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
     },
-    timeout: 30000
+    timeout: 30000,
   });
 
   return data;
