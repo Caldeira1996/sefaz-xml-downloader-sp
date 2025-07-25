@@ -23,8 +23,10 @@ async function validarCertificado(pfxPath, senha) {
   const caPath  = path.join(CA_DIR, 'chain.pem');
 
   // DEBUG de existência
-  console.log('> [TEST] pfxPath existe?', fs.existsSync(pfxPath), pfxPath);
-  console.log('> [TEST] caPath  existe?', fs.existsSync(caPath), caPath);
+  console.log('> CA_DIR  =', CA_DIR);
+  console.log('> caPath  =', caPath, fs.existsSync(caPath));
+  console.log('> PFX_DIR =', PFX_DIR);
+  console.log('> pfxPath =', pfxPath, fs.existsSync(pfxPath));
 
   const httpsAgent = new https.Agent({
     pfx:                fs.readFileSync(pfxPath),
