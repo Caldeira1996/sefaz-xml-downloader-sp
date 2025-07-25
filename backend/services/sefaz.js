@@ -35,6 +35,12 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
     rejectUnauthorized: true
   });
 
+   // DEBUG: veja se o buffer da CA chegou
+  console.log('> [DEBUG] caBundle bytes:', Array.isArray(agent.options.ca)
+    ? agent.options.ca.map(b => b.length)
+    : agent.options.ca.length);
+  console.log('> [DEBUG] pfx bytes:', agent.options.pfx.length);
+
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope
   xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
