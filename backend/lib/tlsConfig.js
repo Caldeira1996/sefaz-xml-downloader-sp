@@ -3,7 +3,7 @@ const fs    = require('fs');
 const path  = require('path');
 const https = require('https');
 
-// sob lib/, sobe um nível para “backend/certs” e “backend/certificates”
+// sai de lib/ e sobe um nível para backend/certs e backend/certificates
 const CERTS_DIR = path.resolve(__dirname, '../certs');
 const PFX_DIR   = path.resolve(__dirname, '../certificates');
 
@@ -11,9 +11,9 @@ function createMtlsAgent(pfxFilename, passphrase) {
   const pfxPath = path.join(PFX_DIR, pfxFilename);
   const caPath  = path.join(CERTS_DIR, 'chain.pem');
 
-  console.log('🔥 [tlsConfig] PFX_DIR =', PFX_DIR);
-  console.log('🔥 [tlsConfig] pfxPath =', pfxPath, 'exists?', fs.existsSync(pfxPath));
-  console.log('🔥 [tlsConfig] caPath  =', caPath,  'exists?', fs.existsSync(caPath));
+  console.log('🔥 [tlsConfig] PFX_DIR =',  PFX_DIR);
+  console.log('🔥 [tlsConfig] pfxPath =',  pfxPath,  'exists?', fs.existsSync(pfxPath));
+  console.log('🔥 [tlsConfig] caPath =',   caPath,   'exists?', fs.existsSync(caPath));
 
   if (!fs.existsSync(pfxPath)) {
     throw new Error(`PFX não encontrado em ${pfxPath}`);
