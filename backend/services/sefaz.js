@@ -5,11 +5,12 @@ const https = require('https');
 const fs    = require('fs');
 const path  = require('path');
 
-// carrega o bundle raiz+intermediária do Sectigo que você montou
-const caBundle = fs.readFileSync(
-  path.join(__dirname, '../certs/ca-bundle.pem')
-);
+// 1) Use um caminho absoluto para o seu bundle de CAs
+const CA_PATH = '/home/ubuntu/sefaz-xml-downloader-sp/backend/certs/ca-bundle.pem';
+console.log('> [INIT] Carregando CA bundle de:', CA_PATH);
+const caBundle = fs.readFileSync(CA_PATH);
 
+// URLs de produção e homologação
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
   'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL ||
@@ -28,6 +29,7 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
 }
 
 async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, xmlDist, ambiente }) {
+  // 2) Monte o agent com o caBundle já carregado
   const agent = new https.Agent({
     pfx:                certificadoBuffer,
     passphrase:         senhaCertificado,
@@ -35,11 +37,9 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
     rejectUnauthorized: true
   });
 
-   // DEBUG: veja se o buffer da CA chegou
-  console.log('> [DEBUG] caBundle bytes:', Array.isArray(agent.options.ca)
-    ? agent.options.ca.map(b => b.length)
-    : agent.options.ca.length);
-  console.log('> [DEBUG] pfx bytes:', agent.options.pfx.length);
+  // 3) DEBUG: confira no log se o bundle e o PFX estão corretos
+  console.log('> [DEBUG] caBundle length:', agent.options.ca.length);
+  console.log('> [DEBUG] pfx length:      ', agent.options.pfx.length);
 
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope
@@ -61,7 +61,7 @@ async function consultarDistribuicaoDFe({ certificadoBuffer, senhaCertificado, x
     headers: {
       'Content-Type': 'text/xml; charset=utf-8',
       'SOAPAction':
-        '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
+        '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"'
     },
     timeout: 30000,
   });
