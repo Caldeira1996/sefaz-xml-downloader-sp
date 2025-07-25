@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope
+  xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
+      <nfeDadosMsg>
+        <![CDATA[
+          <?xml version="1.0" encoding="UTF-8"?>
+          <distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
+            <tpAmb>1</tpAmb>
+            <cUFAutor>35</cUFAutor>
+            <CNPJ>52055075000173</CNPJ>
+            <distNSU>
+              <!-- usar aqui o ultNSU que veio na última resposta -->
+              <ultNSU>000000000000003</ultNSU>
+            </distNSU>
+          </distDFeInt>
+        ]]>
+      </nfeDadosMsg>
+    </nfeDistDFeInteresse>
+  </soap:Body>
+</soap:Envelope>
