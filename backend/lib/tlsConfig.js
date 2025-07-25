@@ -8,13 +8,13 @@ const CERTS_DIR = path.resolve(__dirname, '../certs');
 const PFX_DIR   = path.resolve(__dirname, '../certificates');
 
 /**
- * Cria um https.Agent com PFX + chain.pem
+ * Cria um https.Agent com seu .pfx + chain.pem
  */
 function createMtlsAgent(pfxFilename, passphrase) {
   const pfxPath = path.join(PFX_DIR, pfxFilename);
   const caPath  = path.join(CERTS_DIR, 'chain.pem');
 
-  // logs de DEBUG
+  // DEBUG: confirme que está usando esse arquivo
   console.log('🔥 [tlsConfig] PFX_DIR =', PFX_DIR);
   console.log('🔥 [tlsConfig] pfxPath =', pfxPath, 'exists?', fs.existsSync(pfxPath));
   console.log('🔥 [tlsConfig] caPath =', caPath, 'exists?', fs.existsSync(caPath));
