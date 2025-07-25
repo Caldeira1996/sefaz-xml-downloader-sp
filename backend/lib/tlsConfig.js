@@ -3,27 +3,37 @@ const fs   = require('fs');
 const path = require('path');
 const https = require('https');
 
-const CERT_DIR = path.resolve(__dirname, 'certs');
-const PFX_DIR  = path.resolve(__dirname, 'certificates');
+// Agora CERTS_DIR e PFX_DIR sobem um nível, saindo de lib/ para o root/backend
+const CERTS_DIR = path.resolve(__dirname, '../certs');
+const PFX_DIR   = path.resolve(__dirname, '../certificates');
 
-const CA_PATH  = path.join(CERT_DIR, 'chain.pem');
-const PFX_PATH = path.join(PFX_DIR,  '52.055.075 VANUZIA BARBOSA DE JESUS_52055075000173.pfx');
-const PASSPHRASE = process.env.CERT_PASSWORD; // ou '123456' em dev
+function createMtlsAgent(pfxFilename, passphrase) {
+  const pfxPath = path.join(PFX_DIR, pfxFilename);
+  const caPath  = path.join(CERTS_DIR, 'chain.pem');
 
-// Agente para as requisições mTLS ao SEFAZ
-const mtlsAgent = new https.Agent({
-  pfx:        fs.readFileSync(PFX_PATH),
-  passphrase: PASSPHRASE,
-  ca:         fs.readFileSync(CA_PATH),
-  rejectUnauthorized: true,
-});
+  if (!fs.existsSync(pfxPath)) {
+    throw new Error(`PFX não encontrado em ${pfxPath}`);
+  }
+  if (!fs.existsSync(caPath)) {
+    throw new Error(`CA bundle não encontrado em ${caPath}`);
+  }
 
-// Config SSL/TLS para expor o seu Express em HTTPS
-const httpsOptions = {
-  cert: fs.readFileSync(path.join(CERT_DIR, 'client-cert.pem')),
-  key:  fs.readFileSync(path.join(CERT_DIR, 'client-key.pem')),
-  ca:   fs.readFileSync(CA_PATH),
-  passphrase: PASSPHRASE,
-};
+  return new https.Agent({
+    pfx:                fs.readFileSync(pfxPath),
+    passphrase,
+    ca:                 fs.readFileSync(caPath),
+    rejectUnauthorized: true,
+  });
+}
 
-module.exports = { mtlsAgent, httpsOptions };
+// Opcional: exporta também as opções HTTPS para o seu Express
+function getHttpsOptions(passphrase) {
+  return {
+    cert:       fs.readFileSync(path.join(CERTS_DIR, 'client-cert.pem')),
+    key:        fs.readFileSync(path.join(CERTS_DIR, 'client-key.pem')),
+    ca:         fs.readFileSync(path.join(CERTS_DIR, 'chain.pem')),
+    passphrase,
+  };
+}
+
+module.exports = { createMtlsAgent, getHttpsOptions };
