@@ -3,9 +3,9 @@ const fs    = require('fs');
 const path  = require('path');
 const https = require('https');
 
-// subimos de lib/ para backend/, aí entramos direto em certs/ e certificates/
-const CERTS_DIR = path.resolve(__dirname, '../certs');
-const PFX_DIR   = path.resolve(__dirname, '../certificates');
+// Resolve do diretório lib/ para backend/ e entra em certs/ e certificates/
+const CERTS_DIR = path.resolve(__dirname, '..', 'certs');
+const PFX_DIR   = path.resolve(__dirname, '..', 'certificates');
 
 /**
  * Cria um https.Agent com seu .pfx + chain.pem
