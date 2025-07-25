@@ -3,7 +3,7 @@ const fs    = require('fs');
 const path  = require('path');
 const https = require('https');
 
-// sobe um nível de lib/ para backend/, depois entra em certs/ e certificates/
+// subimos de lib/ para backend/, aí entramos direto em certs/ e certificates/
 const CERTS_DIR = path.resolve(__dirname, '../certs');
 const PFX_DIR   = path.resolve(__dirname, '../certificates');
 
@@ -14,8 +14,8 @@ function createMtlsAgent(pfxFilename, passphrase) {
   const pfxPath = path.join(PFX_DIR, pfxFilename);
   const caPath  = path.join(CERTS_DIR, 'chain.pem');
 
-  console.log('🔥 [tlsConfig] PFX_DIR =', PFX_DIR, 'exists?', fs.existsSync(pfxPath));
-  console.log('🔥 [tlsConfig] CA_DIR  =', CERTS_DIR, 'exists?', fs.existsSync(caPath));
+  console.log('🔥 [tlsConfig] PFX_PATH =', pfxPath, 'exists?', fs.existsSync(pfxPath));
+  console.log('🔥 [tlsConfig] CA_PATH  =', caPath, 'exists?', fs.existsSync(caPath));
 
   if (!fs.existsSync(pfxPath)) {
     throw new Error(`PFX não encontrado em ${pfxPath}`);
@@ -25,9 +25,9 @@ function createMtlsAgent(pfxFilename, passphrase) {
   }
 
   return new https.Agent({
-    pfx:        fs.readFileSync(pfxPath),
+    pfx:                fs.readFileSync(pfxPath),
     passphrase,
-    ca:         fs.readFileSync(caPath),
+    ca:                 fs.readFileSync(caPath),
     rejectUnauthorized: true,
   });
 }
