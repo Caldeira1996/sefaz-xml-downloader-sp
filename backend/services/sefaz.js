@@ -9,6 +9,7 @@ const path  = require('path');
 const CA_PATH = '/home/ubuntu/sefaz-xml-downloader-sp/backend/certs/ca-bundle.pem';
 console.log('> [INIT] Carregando CA bundle de:', CA_PATH);
 const caBundle = fs.readFileSync(CA_PATH);
+console.log('> [INIT] caBundle.length =', caBundle.length);
 
 // URLs de produção e homologação
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
