@@ -25,6 +25,7 @@ app.use(
         'http://localhost:5173',
         'http://localhost:3000',
         'https://localhost:3000',
+        'https://id-preview-c268da26--7f84b5f5-3524-4288-a243-a7cd684253ac.lovable.app',
       ];
       if (!origin || allowed.includes(origin)) return callback(null, origin);
       callback(new Error('Origem não autorizada pelo CORS'));
