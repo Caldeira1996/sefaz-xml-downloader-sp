@@ -7,7 +7,8 @@ const path  = require('path');
 
 // 1) Use um caminho absoluto para o seu bundle de CAs
 const CA_PATH = '/home/ubuntu/sefaz-xml-downloader-sp/backend/certs/ca-bundle.pem';
-console.log('> [INIT] Carregando CA bundle de:', CA_PATH);
+console.log('> [INIT] services/sefaz.js carregado');
+console.log('> [INIT] CA_PATH existe?', fs.existsSync(CA_PATH));
 const caBundle = fs.readFileSync(CA_PATH);
 console.log('> [INIT] caBundle.length =', caBundle.length);
 
