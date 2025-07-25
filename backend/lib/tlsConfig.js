@@ -3,9 +3,10 @@ const fs    = require('fs');
 const path  = require('path');
 const https = require('https');
 
-// sobe um nível para certs/ e certificates/
-const CERTS_DIR = path.resolve(__dirname, '../certs');
-const PFX_DIR   = path.resolve(__dirname, '../certificates');
+// sobe um nível de lib/ para certs/ e certificates/
+const CERTS_DIR = path.resolve(__dirname, '..', '../certs');
+const PFX_DIR   = path.resolve(__dirname, '..', '../certificates');
+
 
 /**
  * Cria um https.Agent com seu .pfx + chain.pem
