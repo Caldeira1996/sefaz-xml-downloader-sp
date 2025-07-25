@@ -1,10 +1,10 @@
 // validate-cert.js
-const fs      = require('fs');
-const https   = require('https');
-const axios   = require('axios');
-const path    = require('path');
+const fs    = require('fs');
+const https = require('https');
+const axios = require('axios');
+const path  = require('path');
 
-// Exibe no console o request de teste
+// Interceptor para logar cada requisição SOAP
 axios.interceptors.request.use(conf => {
   if (conf.url.includes('NFeStatusServico4.asmx')) {
     console.log('\n--- REQUISIÇÃO ENVIADA ---');
@@ -16,10 +16,17 @@ axios.interceptors.request.use(conf => {
 });
 
 async function validarCertificado(pfxPath, senha) {
+  const CERTS_DIR = path.resolve(__dirname, '../certs');
+  const caPath    = path.join(CERTS_DIR, 'chain.pem');
+
+  // Verificações de existência de arquivos
+  console.log('> [TEST] pfxPath existe?', fs.existsSync(pfxPath), pfxPath);
+  console.log('> [TEST] caPath  existe?', fs.existsSync(caPath), caPath);
+
   const httpsAgent = new https.Agent({
-    pfx:        fs.readFileSync(pfxPath),
-    passphrase: senha,
-    ca:         fs.readFileSync(path.join(__dirname, 'certs', 'chain.pem')),
+    pfx:                fs.readFileSync(pfxPath),
+    passphrase:         senha,
+    ca:                 fs.readFileSync(caPath),
     rejectUnauthorized: true,
   });
 
@@ -41,7 +48,7 @@ async function validarCertificado(pfxPath, senha) {
   const headers = {
     'Content-Type':
       'application/soap+xml; charset=utf-8; ' +
-      'action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"',
+      'action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"'
   };
 
   try {
@@ -50,7 +57,7 @@ async function validarCertificado(pfxPath, senha) {
       xmlEnvelope,
       { httpsAgent, headers, timeout: 15000 }
     );
-    console.log('Resposta validação de certificado:', data);
+    console.log('✅ Resposta validação de certificado:\n', data);
   } catch (err) {
     console.error('❌ Falha na validação do certificado:');
     console.error(err.response?.data || err.message);
@@ -59,10 +66,9 @@ async function validarCertificado(pfxPath, senha) {
 
 // Teste rápido
 (async () => {
-  const pfxPath = path.join(
-    __dirname,
-    'certificates',
-    '52.055.075 VANUZIA BARBOSA DE JESUS_52055075000173.pfx'
-  );
-  await validarCertificado(pfxPath, '123456');
+  const CERTS_DIR   = path.resolve(__dirname, '../certs');
+  const pfxFilename = '52.055.075 VANUZIA BARBOSA DE JESUS_52055075000173.pfx';
+  const pfxPath     = path.join(CERTS_DIR, pfxFilename);
+  const senha       = '123456'; // substitua pela senha correta do seu PFX
+  await validarCertificado(pfxPath, senha);
 })();

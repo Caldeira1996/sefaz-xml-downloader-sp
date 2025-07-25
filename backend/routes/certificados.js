@@ -4,7 +4,7 @@ const {
   buscarCertificado,
   listarCertificadosAtivos,
 } = require('../services/certificados');
-const db = require('../config/db'); // knex ou mysql2/promise
+const db = require('../db'); // knex ou mysql2/promise
 
 const { excluirCertificado } = require('../services/certificados');
 
