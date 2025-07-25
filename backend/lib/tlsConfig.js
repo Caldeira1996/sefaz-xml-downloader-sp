@@ -8,7 +8,7 @@ const PFX_DIR   = path.resolve(__dirname, '../certificates');
 
 /**
  * Cria um https.Agent com PFX + chain.pem
- *
+ * criou
  * @param {string} pfxFilename — nome do .pfx dentro de certificates/
  * @param {string} passphrase — senha do PFX
  */
