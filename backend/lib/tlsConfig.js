@@ -3,10 +3,13 @@ const fs   = require('fs');
 const path = require('path');
 const https = require('https');
 
-// Agora CERTS_DIR e PFX_DIR sobem um nível, saindo de lib/ para o root/backend
+// sai de lib/ e vai para backend/certs e backend/certificates
 const CERTS_DIR = path.resolve(__dirname, '../certs');
 const PFX_DIR   = path.resolve(__dirname, '../certificates');
 
+/**
+ * Cria um https.Agent para mTLS usando o seu PFX + chain.pem
+ */
 function createMtlsAgent(pfxFilename, passphrase) {
   const pfxPath = path.join(PFX_DIR, pfxFilename);
   const caPath  = path.join(CERTS_DIR, 'chain.pem');
@@ -26,7 +29,9 @@ function createMtlsAgent(pfxFilename, passphrase) {
   });
 }
 
-// Opcional: exporta também as opções HTTPS para o seu Express
+/**
+ * Se você expor o Express em HTTPS:
+ */
 function getHttpsOptions(passphrase) {
   return {
     cert:       fs.readFileSync(path.join(CERTS_DIR, 'client-cert.pem')),

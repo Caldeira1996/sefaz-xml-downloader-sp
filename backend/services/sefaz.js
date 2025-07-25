@@ -1,6 +1,6 @@
 // services/sefaz.js
 require('dotenv').config();
-const axios            = require('axios');
+const axios             = require('axios');
 const { createMtlsAgent } = require('../lib/tlsConfig');
 
 // Endpoints de Distribuição DF-e
@@ -22,7 +22,7 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
 }
 
 async function consultarDistribuicaoDFe({ certificadoFilename, senhaCertificado, xmlDist, ambiente }) {
-  // monta o mTLS agent corretamente
+  // monta o https.Agent de mTLS correto
   const httpsAgent = createMtlsAgent(certificadoFilename, senhaCertificado);
 
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
@@ -36,8 +36,7 @@ async function consultarDistribuicaoDFe({ certificadoFilename, senhaCertificado,
   </soap:Body>
 </soap:Envelope>`;
 
-  const url = ambiente === 'producao' ? URL_DIST_PROD : URL_DIST_HOMO;
-
+  const url = (ambiente === 'producao' ? URL_DIST_PROD : URL_DIST_HOMO);
   const { data } = await axios.post(url, envelope, {
     httpsAgent,
     headers: {
