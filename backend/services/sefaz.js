@@ -1,22 +1,24 @@
 // services/sefaz.js
 
 require('dotenv').config();
-const axios  = require('axios');
-const https  = require('https');
-const fs     = require('fs');
-const path   = require('path');
+const axios = require('axios');
+const https = require('https');
+const fs    = require('fs');
+const path  = require('path');
 
-// Diretórios absolutos para seus certificados
-const CERTS_DIR    = path.resolve(__dirname, '../certs');
-const PFX_DIR      = path.resolve(__dirname, '../certificates');
+// 1) Diretórios absolutos para seus certificados
+const CERTS_DIR = path.resolve(__dirname, '../certs');
+const PFX_DIR   = path.resolve(__dirname, '../certificates');
 
-// Endpoints de Distribuição DF-e
+// 2) Endpoints de Distribuição DF‑e (lê do .env ou usa fallback)
 const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
   'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL ||
   'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 
-// Gera o XML de consulta de distribuição
+/**
+ * Monta o XML de distribuição de DF‑e
+ */
 function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
@@ -32,28 +34,27 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
 }
 
 /**
- * Faz a chamada de Distribuição DF‑e usando certificado PFX + cadeia de CAs.
+ * Consulta Distribuição DF‑e via SOAP 1.2 usando mTLS
  *
- * @param {Object}   opts
- * @param {string}   opts.certificadoFilename  — nome do .pfx em certificates/
- * @param {string}   opts.senhaCertificado     — senha do .pfx
- * @param {string}   opts.xmlDist              — corpo XML gerado por createDistDFeIntXML()
+ * @param {Object} opts
+ * @param {string} opts.certificadoFilename – nome do .pfx dentro de certificates/
+ * @param {string} opts.senhaCertificado    – senha do PFX
+ * @param {string} opts.xmlDist             – XML gerado por createDistDFeIntXML()
  * @param {'producao'|'homologacao'} opts.ambiente
  */
 async function consultarDistribuicaoDFe({ certificadoFilename, senhaCertificado, xmlDist, ambiente }) {
-  // monta paths
   const pfxPath = path.join(PFX_DIR, certificadoFilename);
   const caPath  = path.join(CERTS_DIR, 'chain.pem');
 
-  // valida existência
+  // 3) valida existência dos arquivos
   if (!fs.existsSync(pfxPath)) {
-    throw new Error(`Certificado PFX não encontrado em ${pfxPath}`);
+    throw new Error(`❌ Não achei o PFX em ${pfxPath}`);
   }
   if (!fs.existsSync(caPath)) {
-    throw new Error(`CA bundle não encontrado em ${caPath}`);
+    throw new Error(`❌ Não achei o CA bundle em ${caPath}`);
   }
 
-  // cria agent HTTPS mTLS
+  // 4) monta o https.Agent com mTLS
   const httpsAgent = new https.Agent({
     pfx:                fs.readFileSync(pfxPath),
     passphrase:         senhaCertificado,
@@ -61,7 +62,7 @@ async function consultarDistribuicaoDFe({ certificadoFilename, senhaCertificado,
     rejectUnauthorized: true,
   });
 
-  // envelopa em SOAP 1.2
+  // 5) monta envelope SOAP 1.2
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope
   xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
@@ -76,9 +77,10 @@ async function consultarDistribuicaoDFe({ certificadoFilename, senhaCertificado,
   </soap:Body>
 </soap:Envelope>`;
 
-  // escolhe URL
+  // 6) escolhe URL de produção ou homologação
   const url = ambiente === 'producao' ? URL_DIST_PROD : URL_DIST_HOMO;
 
+  // 7) dispara o POST via Axios
   const { data } = await axios.post(url, envelope, {
     httpsAgent,
     headers: {
@@ -92,4 +94,7 @@ async function consultarDistribuicaoDFe({ certificadoFilename, senhaCertificado,
   return data;
 }
 
-module.exports = { createDistDFeIntXML, consultarDistribuicaoDFe };
+module.exports = {
+  createDistDFeIntXML,
+  consultarDistribuicaoDFe
+};
