@@ -1,4 +1,3 @@
-// services/sefaz.js
 require('dotenv').config();
 const axios             = require('axios');
 const { createMtlsAgent } = require('../lib/tlsConfig');
