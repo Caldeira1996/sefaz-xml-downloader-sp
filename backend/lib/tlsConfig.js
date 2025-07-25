@@ -3,10 +3,9 @@ const fs    = require('fs');
 const path  = require('path');
 const https = require('https');
 
-// sobe um nível de lib/ para certs/ e certificates/
-const CERTS_DIR = path.resolve(__dirname, '..', '../certs');
-const PFX_DIR   = path.resolve(__dirname, '..', '../certificates');
-
+// sobe um nível de lib/ para backend/, depois entra em certs/ e certificates/
+const CERTS_DIR = path.resolve(__dirname, '../certs');
+const PFX_DIR   = path.resolve(__dirname, '../certificates');
 
 /**
  * Cria um https.Agent com seu .pfx + chain.pem
@@ -38,9 +37,9 @@ function createMtlsAgent(pfxFilename, passphrase) {
  */
 function getHttpsOptions(passphrase) {
   return {
-    cert: fs.readFileSync(path.join(CERTS_DIR, 'client-cert.pem')),
-    key:  fs.readFileSync(path.join(CERTS_DIR, 'client-key.pem')),
-    ca:   fs.readFileSync(path.join(CERTS_DIR, 'chain.pem')),
+    cert:       fs.readFileSync(path.join(CERTS_DIR, 'client-cert.pem')),
+    key:        fs.readFileSync(path.join(CERTS_DIR, 'client-key.pem')),
+    ca:         fs.readFileSync(path.join(CERTS_DIR, 'chain.pem')),
     passphrase,
   };
 }
