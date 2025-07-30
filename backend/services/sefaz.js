@@ -1,3 +1,7 @@
+require('dotenv').config();
+const axios             = require('axios');
+const { createMtlsAgent } = require('../lib/tlsConfig');
+
 // services/sefaz.js
 const URL_STATUS_PROD = 'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx';
 const URL_STATUS_HOMO = 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx';
