@@ -24,7 +24,11 @@ router.post('/', async (req, res) => {
     const certificadoBuffer = Buffer.from(certificado.certificado_base64, 'base64');
     const senhaCertificado = certificado.senha_certificado;
 
-    const resultado = await consultarStatusSefaz(certificadoBuffer, senhaCertificado, ambiente);
+    const resultado = await consultarStatusSefaz({
+      certificadoBuffer,
+      senhaCertificado,
+      ambiente,
+    });
 
     res.json({
       success: resultado.sucesso,

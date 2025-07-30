@@ -75,12 +75,15 @@ async function consultarDistribuicaoDFe({
 /* -----------------------------------------------------
  * Status do Serviço
  * --------------------------------------------------- */
-async function consultarStatusSefaz({
-  certificadoFilename,
-  senhaCertificado,
-  ambiente = 'producao',
-}) {
-  const httpsAgent = createMtlsAgent(certificadoFilename, senhaCertificado);
+ async function consultarStatusSefaz({
+   certificadoFilename,
+   certificadoBuffer,          // ← novo
+   senhaCertificado,
+   ambiente = 'producao',
+ }) {
+   const certInput = certificadoBuffer || certificadoFilename;
+   
+   const httpsAgent = createMtlsAgent(certInput, senhaCertificado);
 
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
