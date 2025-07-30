@@ -64,8 +64,8 @@ async function consultarDistribuicaoDFe({
     timeout: 30000,
     headers: {
       'Content-Type': 'application/soap+xml; charset=utf-8',
-      'SOAPAction':
-        '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
+      // 'SOAPAction':
+      //   '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
     },
   });
 
@@ -82,7 +82,7 @@ async function consultarDistribuicaoDFe({
    ambiente = 'producao',
  }) {
    const certInput = certificadoBuffer || certificadoFilename;
-   
+
    const httpsAgent = createMtlsAgent(certInput, senhaCertificado);
 
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
