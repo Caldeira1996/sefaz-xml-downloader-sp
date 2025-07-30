@@ -39,18 +39,22 @@ router.post('/', async (req, res) => {
     });
 
     // parseia o XML (pega tpAmb, cStat, xMotivo…)
-    const parser = new XMLParser({ ignoreAttributes: false });
-    const parsed = parser.parse(xmlResp);
+     const parser = new XMLParser({
+      ignoreAttributes : false,
+      ignoreNameSpace  : true   //  <<<<<<  ESSA LINHA FAZ A DIFERENÇA
+    });
 
-    const ret = parsed?.['soap:Envelope']?.['soap:Body']
-      ?.['nfeResultMsg']?.retConsStatServ;
+    const parsed  = parser.parse(xmlResp);
+    const ret     = parsed.Envelope?.Body?.nfeResultMsg?.retConsStatServ;
+//  ----------------------------------------------
 
-    if (!ret)
+    if (!ret) {
       return res.status(502).json({
-        success: false,
-        error  : 'Resposta inesperada da SEFAZ',
-        raw    : xmlResp,
+        success : false,
+        error   : 'Resposta inesperada da SEFAZ',
+        raw     : xmlResp            // devolve para depuração
       });
+    }
 
     return res.json({
       success   : true,
@@ -60,8 +64,7 @@ router.post('/', async (req, res) => {
       tpAmb     : ret.tpAmb,
       verAplic  : ret.verAplic,
       dhRecbto  : ret.dhRecbto,
-      tMed      : ret.tMed,
-      raw       : xmlResp,          // opcional: retire se não quiser
+      tMed      : ret.tMed
     });
   } catch (err) {
     console.error('Erro /api/status:', err);
