@@ -1,28 +1,34 @@
-// backend/lib/tlsConfig.js
 const fs   = require('fs');
 const path = require('path');
 const https = require('https');
 
 const CA_DIR  = path.resolve(__dirname, '../certs');
-const PFX_DIR = path.resolve(__dirname, '../certificates');
+const chainPath = path.join(CA_DIR, 'chain.pem');
 
+/**
+ * Carrega certificado PFX tanto de Buffer quanto de arquivo.
+ */
 function loadPfx(certInput) {
-  if (Buffer.isBuffer(certInput)) {
-    return certInput;                 // já é Buffer
-  }
-  // senão, consideramos string → ler do disco
-  const pfxPath = path.join(PFX_DIR, certInput);
-  return fs.readFileSync(pfxPath);
+  if (Buffer.isBuffer(certInput)) return certInput;
+  return fs.readFileSync(path.join(path.resolve(__dirname, '../certificates'), certInput));
 }
 
 function createMtlsAgent(certInput, passphrase) {
-  const ca  = fs.readFileSync(path.join(CA_DIR, 'chain.pem'));
-  const pfx = loadPfx(certInput);
+  // ⚠️ Lê sua cadeia customizada (G4 + Raiz v10)
+  const customCa = fs.readFileSync(chainPath);
+
+  // 🚀 Pega a store default que o Node já carrega (Sectigo, DigiCert, etc.)
+  const systemCa = https.globalAgent.options.ca || [];
+
+  // Junta tudo num array (garante que sempre seja array)
+  const caBundle = Array.isArray(systemCa)
+    ? [...systemCa, customCa]
+    : [systemCa, customCa];
 
   return new https.Agent({
-    pfx,
+    pfx: loadPfx(certInput),
     passphrase,
-    ca,
+    ca: caBundle,
     rejectUnauthorized: true,
   });
 }
