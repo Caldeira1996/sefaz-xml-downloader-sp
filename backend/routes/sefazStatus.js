@@ -1,12 +1,14 @@
 // routes/sefazStatus.js
 const express = require('express');
-const router  = express.Router();
+const { XMLParser } = require('fast-xml-parser');
 
 const { buscarCertificadoPrincipal } = require('../services/certificados');
 const { consultarStatusSefaz }       = require('../services/sefaz');
 
-// ----- rota simples de “ping” ------------------------------------------------
-router.get('/', (req, res) => {
+const router = express.Router();
+
+// ping simples
+router.get('/', (_req, res) => {
   res.json({
     status    : 'OK',
     servidor  : 'Proxy SEFAZ SP',
@@ -15,38 +17,55 @@ router.get('/', (req, res) => {
   });
 });
 
-// ----- rota que consulta o web‑service de “Status do Serviço” ----------------
 router.post('/', async (req, res) => {
   try {
     const ambiente = req.body.ambiente || 'producao';
 
-    // pega o certificado “principal” salvo em banco
+    // certificado principal salvo no banco
     const cert = await buscarCertificadoPrincipal();
-    if (!cert || !cert.certificado_base64 || !cert.senha_certificado) {
-      return res.status(404).json({
-        success: false,
-        error  : 'Nenhum certificado válido cadastrado.',
-      });
-    }
+    if (!cert)
+      return res
+        .status(404)
+        .json({ success: false, error: 'Nenhum certificado cadastrado' });
 
     const certificadoBuffer = Buffer.from(cert.certificado_base64, 'base64');
     const senhaCertificado  = cert.senha_certificado;
 
-    // *** chamada usa objeto com buffer ***
-    const xmlResposta = await consultarStatusSefaz({
+    // chama o web‑service
+    const xmlResp = await consultarStatusSefaz({
       certificadoBuffer,
       senhaCertificado,
       ambiente,
     });
 
-    res.json({
-      success          : true,
-      ambiente_recebido: ambiente,
-      raw              : xmlResposta,
+    // parseia o XML (pega tpAmb, cStat, xMotivo…)
+    const parser = new XMLParser({ ignoreAttributes: false });
+    const parsed = parser.parse(xmlResp);
+
+    const ret = parsed?.['soap:Envelope']?.['soap:Body']
+      ?.['nfeResultMsg']?.retConsStatServ;
+
+    if (!ret)
+      return res.status(502).json({
+        success: false,
+        error  : 'Resposta inesperada da SEFAZ',
+        raw    : xmlResp,
+      });
+
+    return res.json({
+      success   : true,
+      ambiente  : ambiente,
+      cStat     : ret.cStat,
+      xMotivo   : ret.xMotivo,
+      tpAmb     : ret.tpAmb,
+      verAplic  : ret.verAplic,
+      dhRecbto  : ret.dhRecbto,
+      tMed      : ret.tMed,
+      raw       : xmlResp,          // opcional: retire se não quiser
     });
-  } catch (error) {
-    console.error('Erro /api/status:', error);
-    res.status(500).json({ success: false, error: error.message });
+  } catch (err) {
+    console.error('Erro /api/status:', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
