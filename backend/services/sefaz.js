@@ -105,12 +105,12 @@ async function consultarStatusSefaz({
   const { data } = await axios.post(url, envelope, {
     httpsAgent,
     timeout: 30000,
-    headers: {
-      // **SOAP 1.2** → action da operação nfeStatusServicoNF
-      'Content-Type':
-        'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"',
-    },
-  });
+      headers: {
+        // SOAP 1.2 → action dentro do Content‑Type
+        'Content-Type':
+          'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"',
+      }
+    });
 
   return data; // XML de resposta
 }
