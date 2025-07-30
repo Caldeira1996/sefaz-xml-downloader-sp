@@ -6,14 +6,18 @@ const { createMtlsAgent } = require('../lib/tlsConfig');
 /* -----------------------------------------------------
  * Endpoints
  * --------------------------------------------------- */
-const URL_STATUS_PROD = process.env.SEFAZ_STATUS_PROD_URL ||
+const URL_STATUS_PROD =
+  process.env.SEFAZ_STATUS_PROD_URL ||
   'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx';
-const URL_STATUS_HOMO = process.env.SEFAZ_STATUS_HOMO_URL ||
+const URL_STATUS_HOMO =
+  process.env.SEFAZ_STATUS_HOMO_URL ||
   'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx';
 
-const URL_DIST_PROD = process.env.SEFAZ_DIST_PROD_URL ||
+const URL_DIST_PROD =
+  process.env.SEFAZ_DIST_PROD_URL ||
   'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
-const URL_DIST_HOMO = process.env.SEFAZ_DIST_HOMO_URL ||
+const URL_DIST_HOMO =
+  process.env.SEFAZ_DIST_HOMO_URL ||
   'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
 
 /* -----------------------------------------------------
@@ -41,10 +45,8 @@ async function consultarDistribuicaoDFe({
   xmlDist,
   ambiente = 'producao',
 }) {
-
-  // Se vier buffer, usa; senão usa filename
+  // Se vier buffer usa; senão usa filename
   const certInput = certificadoBuffer || certificadoFilename;
-
   const httpsAgent = createMtlsAgent(certInput, senhaCertificado);
 
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
@@ -63,6 +65,7 @@ async function consultarDistribuicaoDFe({
     httpsAgent,
     timeout: 30000,
     headers: {
+      // **SOAP 1.2** → a operação (action) vai dentro do Content‑Type
       'Content-Type':
         'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
     },
@@ -76,12 +79,11 @@ async function consultarDistribuicaoDFe({
  * --------------------------------------------------- */
 async function consultarStatusSefaz({
   certificadoFilename,
-  certificadoBuffer,          // ← novo
+  certificadoBuffer,
   senhaCertificado,
   ambiente = 'producao',
 }) {
   const certInput = certificadoBuffer || certificadoFilename;
-
   const httpsAgent = createMtlsAgent(certInput, senhaCertificado);
 
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
@@ -104,6 +106,7 @@ async function consultarStatusSefaz({
     httpsAgent,
     timeout: 30000,
     headers: {
+      // **SOAP 1.2** → action da operação nfeStatusServicoNF
       'Content-Type':
         'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"',
     },
