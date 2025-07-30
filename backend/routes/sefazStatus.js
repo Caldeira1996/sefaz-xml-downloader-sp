@@ -45,6 +45,7 @@ router.post('/', async (req, res) => {
     });
 
     const parsed  = parser.parse(xmlResp);
+    console.dir(parsed, { depth: null }); // debug
     // const ret     = parsed.Envelope?.Body?.nfeResultMsg?.retConsStatServ;
     const ret = parsed.Envelope?.Body?.nfeResultMsg?.retConsStatServ;
 //  ----------------------------------------------
