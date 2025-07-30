@@ -87,19 +87,20 @@ async function consultarStatusSefaz({
   const httpsAgent = createMtlsAgent(certInput, senhaCertificado);
 
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
-<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-  <soap12:Body>
-    <nfeStatusServicoNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
-      <nfeDadosMsg><![CDATA[
-        <consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
-          <tpAmb>${ambiente === 'producao' ? 1 : 2}</tpAmb>
-          <cUF>35</cUF>
-          <xServ>STATUS</xServ>
-        </consStatServ>
-      ]]></nfeDadosMsg>
-    </nfeStatusServicoNF>
-  </soap12:Body>
-</soap12:Envelope>`;
+    <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+      <soap12:Body>
+        <ns2:nfeStatusServicoNF
+            xmlns:ns2="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
+          <ns2:nfeDadosMsg><![CDATA[
+            <consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+              <tpAmb>${ambiente === 'producao' ? 1 : 2}</tpAmb>
+              <cUF>35</cUF>
+              <xServ>STATUS</xServ>
+            </consStatServ>
+          ]]></ns2:nfeDadosMsg>
+        </ns2:nfeStatusServicoNF>
+      </soap12:Body>
+    </soap12:Envelope>`;
 
   const url = ambiente === 'producao' ? URL_STATUS_PROD : URL_STATUS_HOMO;
   const { data } = await axios.post(url, envelope, {
