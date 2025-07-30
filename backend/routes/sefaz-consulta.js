@@ -1,10 +1,10 @@
 // routes/sefaz-consulta.js
 const express = require('express');
-const fs      = require('fs');
-const path    = require('path');
-const { buscarCertificado }            = require('../services/certificados');
+const fs = require('fs');
+const path = require('path');
+const { buscarCertificado } = require('../services/certificados');
 const { createDistDFeIntXML, consultarDistribuicaoDFe } = require('../services/sefaz');
-const { parseResponse }                = require('../controller/doczip');
+const { parseResponse } = require('../controller/doczip');
 
 const router = express.Router();
 
@@ -53,7 +53,12 @@ router.post('/consulta', async (req, res) => {
   }
   catch (e) {
     console.error('> [ROTA] Erro ao consultar SEFAZ:', e);
-    return res.status(500).json({ error: e.message });
+    return res.json({
+      success: true,
+      totalFound: resultado.docs.length,  // ← contagem para o front‑end
+      totalSaved: resultado.docs.length,  // ou a quantidade que você realmente salvou
+      ...resultado
+    });
   }
 });
 
