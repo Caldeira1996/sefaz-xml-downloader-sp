@@ -3,7 +3,7 @@ const path = require('path');
 const https = require('https');
 
 const CA_DIR  = path.resolve(__dirname, '../certs');
-const chainPath = path.join(CA_DIR, 'chain.pem');
+const chainPath = path.join(CA_DIR, 'full-chain.pem');
 
 /**
  * Carrega certificado PFX tanto de Buffer quanto de arquivo.
