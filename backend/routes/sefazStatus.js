@@ -41,7 +41,7 @@ router.post('/', async (req, res) => {
     // parseia o XML (pega tpAmb, cStat, xMotivo…)
      const parser = new XMLParser({
       ignoreAttributes : false,
-      ignoreNameSpace  : true   //  <<<<<<  ESSA LINHA FAZ A DIFERENÇA (ALTERADO)
+      ignoreNameSpace  : false   //  <<<<<<  ESSA LINHA FAZ A DIFERENÇA (ALTERADO)
     });
 
     const parsed  = parser.parse(xmlResp);
