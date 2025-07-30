@@ -1,10 +1,12 @@
 // routes/sefaz-consulta.js
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const { buscarCertificado } = require('../services/certificados');
-const { createDistDFeIntXML, consultarDistribuicaoDFe } = require('../services/sefaz');
-const { parseResponse } = require('../controller/doczip');
+const fs      = require('fs');
+const path    = require('path');
+
+const { buscarCertificado }             = require('../services/certificados');
+const { createDistDFeIntXML,
+        consultarDistribuicaoDFe }      = require('../services/sefaz');
+const { parseResponse }                 = require('../controller/doczip');
 
 const router = express.Router();
 
@@ -15,50 +17,49 @@ router.post('/consulta', async (req, res) => {
       return res.status(400).json({ error: 'Parâmetros obrigatórios faltando' });
     }
 
-    // 1) Busca o PFX no banco
+    /* 1) Certificado ------------------------------------------------------- */
     const cert = await buscarCertificado(certificadoId);
-    if (!cert) {
-      return res.status(404).json({ error: 'Certificado não encontrado' });
-    }
-    const pfxBuffer = Buffer.from(cert.certificado_base64, 'base64');
+    if (!cert) return res.status(404).json({ error: 'Certificado não encontrado' });
+
+    const pfxBuffer       = Buffer.from(cert.certificado_base64, 'base64');
     const senhaCertificado = cert.senha_certificado;
 
-    // 2) Carrega o ca-bundle **inline** e loga seu tamanho
+    /* 2) ( logs de diagnóstico, não usados mais ) ------------------------- */
     const CA_PATH = path.resolve(__dirname, '../certs/ca-bundle.pem');
     const caBundleInline = fs.readFileSync(CA_PATH);
-    console.log('> [ROTA] caBundleInline carregado de:', CA_PATH);
-    console.log('> [ROTA] caBundleInline.length =', caBundleInline.length);
-    console.log('> [ROTA] pfxBuffer.length       =', pfxBuffer.length);
+    console.log('> caBundleInline.length =', caBundleInline.length);
+    console.log('> pfxBuffer.length       =', pfxBuffer.length);
 
-    // 3) Gera o XML de consulta
+    /* 3) XML de requisição ------------------------------------------------- */
     const xmlDist = createDistDFeIntXML({
-      tpAmb: ambiente === 'producao' ? '1' : '2',
+      tpAmb   : ambiente === 'producao' ? '1' : '2',
       cUFAutor: '35',
-      CNPJ: cnpjConsultado,
-      ultNSU: '000000000000000',
+      CNPJ    : cnpjConsultado,
+      ultNSU  : '000000000000000',
     });
 
-    // 4) Chama o serviço (adapte o service para aceitar opção de agent se quiser)
+    /* 4) Chamada ao web‑service ------------------------------------------- */
     const respostaXml = await consultarDistribuicaoDFe({
       certificadoBuffer: pfxBuffer,
       senhaCertificado,
       xmlDist,
       ambiente,
-      // opcional: httpsAgentOverride: new https.Agent({ pfx: pfxBuffer, passphrase: senhaCertificado, ca: caBundleInline, rejectUnauthorized: true })
+      // se quiser, pode passar httpsAgentOverride personalizado
     });
 
-    // 5) Processa e retorna
+    /* 5) Parse e resposta -------------------------------------------------- */
     const resultado = await parseResponse(respostaXml);
-    return res.json({ success: true, ...resultado });
-  }
-  catch (e) {
-    console.error('> [ROTA] Erro ao consultar SEFAZ:', e);
+
     return res.json({
-      success: true,
-      totalFound: resultado.docs.length,  // ← contagem para o front‑end
-      totalSaved: resultado.docs.length,  // ou a quantidade que você realmente salvou
-      ...resultado
+      success    : true,
+      totalFound : resultado.docs.length,
+      totalSaved : resultado.docs.length,   // ajuste se salvar menos
+      ...resultado,
     });
+
+  } catch (e) {
+    console.error('> [ROTA] Erro ao consultar SEFAZ:', e);
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 

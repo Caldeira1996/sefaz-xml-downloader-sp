@@ -1,50 +1,52 @@
+// routes/sefazStatus.js
 const express = require('express');
-const router = express.Router();
-const { buscarCertificadoPrincipal } = require('../services/certificados'); // Função para pegar o certificado do banco
-const { consultarStatusSefaz } = require('../services/sefaz');
+const router  = express.Router();
 
+const { buscarCertificadoPrincipal } = require('../services/certificados');
+const { consultarStatusSefaz }       = require('../services/sefaz');
+
+// ----- rota simples de “ping” ------------------------------------------------
 router.get('/', (req, res) => {
   res.json({
-    status: 'OK',
-    servidor: 'Proxy SEFAZ SP',
-    timestamp: new Date().toISOString(),
-    ambiente: process.env.NODE_ENV || 'development',
+    status    : 'OK',
+    servidor  : 'Proxy SEFAZ SP',
+    timestamp : new Date().toISOString(),
+    ambiente  : process.env.NODE_ENV || 'development',
   });
 });
 
+// ----- rota que consulta o web‑service de “Status do Serviço” ----------------
 router.post('/', async (req, res) => {
   try {
     const ambiente = req.body.ambiente || 'producao';
-    const certificado = await buscarCertificadoPrincipal();
 
-    if (!certificado || !certificado.certificado_base64 || !certificado.senha_certificado) {
-      return res.status(404).json({ success: false, error: 'Nenhum certificado válido cadastrado.' });
+    // pega o certificado “principal” salvo em banco
+    const cert = await buscarCertificadoPrincipal();
+    if (!cert || !cert.certificado_base64 || !cert.senha_certificado) {
+      return res.status(404).json({
+        success: false,
+        error  : 'Nenhum certificado válido cadastrado.',
+      });
     }
 
-    const certificadoBuffer = Buffer.from(certificado.certificado_base64, 'base64');
-    const senhaCertificado = certificado.senha_certificado;
+    const certificadoBuffer = Buffer.from(cert.certificado_base64, 'base64');
+    const senhaCertificado  = cert.senha_certificado;
 
-    const resultado = await consultarStatusSefaz({
+    // *** chamada usa objeto com buffer ***
+    const xmlResposta = await consultarStatusSefaz({
       certificadoBuffer,
       senhaCertificado,
       ambiente,
     });
 
     res.json({
-      success: resultado.sucesso,
+      success          : true,
       ambiente_recebido: ambiente,
-      statusCode: resultado.statusCode,
-      motivo: resultado.motivo,
-      timestamp: new Date().toISOString(),
-      raw: resultado.raw,
-      error: resultado.error,
+      raw              : xmlResposta,
     });
   } catch (error) {
     console.error('Erro /api/status:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
