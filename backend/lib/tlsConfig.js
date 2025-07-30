@@ -29,7 +29,7 @@ function createMtlsAgent(certInput, passphrase) {
     pfx: loadPfx(certInput),
     passphrase,
     ca: caBundle,
-    rejectUnauthorized: true,
+    rejectUnauthorized: false,
   });
 }
 
