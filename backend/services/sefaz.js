@@ -63,9 +63,8 @@ async function consultarDistribuicaoDFe({
     httpsAgent,
     timeout: 30000,
     headers: {
-      // SOAP 1.2 da SEFAZ exige o parâmetro action= dentro do Content‑Type
       'Content-Type':
-        'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"',
+        'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
     },
   });
 
@@ -105,9 +104,8 @@ async function consultarStatusSefaz({
     httpsAgent,
     timeout: 30000,
     headers: {
-      'Content-Type': 'application/soap+xml; charset=utf-8',
-      'SOAPAction':
-        '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"',
+      'Content-Type':
+        'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"',
     },
   });
 
