@@ -3,7 +3,7 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const pool = require('../db'); // Pool pg
-const { convertPfxToPem } = require('../convert-pxf-to-pem');
+//const { convertPfxToPem } = require('../convert-pxf-to-pem');
 const { validarCertificado } = require('../services/validate-cert');
 
 const router = express.Router();
@@ -56,8 +56,8 @@ router.post('/upload-cert', upload.single('file'), async (req, res) => {
     if (!fs.existsSync(certsOutputDir)) {
       fs.mkdirSync(certsOutputDir);
     }
-    await convertPfxToPem(fileBuffer, senha, certsOutputDir);
-    console.log(`Arquivos .pem salvos em ${certsOutputDir}`);
+    //await convertPfxToPem(fileBuffer, senha, certsOutputDir);
+    //console.log(`Arquivos .pem salvos em ${certsOutputDir}`);
 
     res.json({ success: true, id });
 
