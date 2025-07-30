@@ -6,17 +6,18 @@ const https = require('https');
 const CA_DIR  = path.resolve(__dirname, '../certs');
 const PFX_DIR = path.resolve(__dirname, '../certificates');
 
-/**
- * Retorna um https.Agent configurado para mTLS.
- * @param {string} certFilename  ex.: 'empresa.pfx'
- * @param {string} passphrase    senha do PFX
- */
-function createMtlsAgent(certFilename, passphrase) {
-  const pfxPath = path.join(PFX_DIR, certFilename);
-  const caPath  = path.join(CA_DIR,  'chain.pem');
+function loadPfx(certInput) {
+  if (Buffer.isBuffer(certInput)) {
+    return certInput;                 // já é Buffer
+  }
+  // senão, consideramos string → ler do disco
+  const pfxPath = path.join(PFX_DIR, certInput);
+  return fs.readFileSync(pfxPath);
+}
 
-  const pfx = fs.readFileSync(pfxPath);
-  const ca  = fs.readFileSync(caPath);
+function createMtlsAgent(certInput, passphrase) {
+  const ca  = fs.readFileSync(path.join(CA_DIR, 'chain.pem'));
+  const pfx = loadPfx(certInput);
 
   return new https.Agent({
     pfx,

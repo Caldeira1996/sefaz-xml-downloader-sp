@@ -35,12 +35,17 @@ function createDistDFeIntXML({ tpAmb, cUFAutor, CNPJ, ultNSU }) {
  * Distribuição DF‑e
  * --------------------------------------------------- */
 async function consultarDistribuicaoDFe({
+  certificadoBuffer,
   certificadoFilename,
   senhaCertificado,
   xmlDist,
   ambiente = 'producao',
 }) {
-  const httpsAgent = createMtlsAgent(certificadoFilename, senhaCertificado);
+
+  // Se vier buffer, usa; senão usa filename
+  const certInput = certificadoBuffer || certificadoFilename;
+
+  const httpsAgent = createMtlsAgent(certInput, senhaCertificado);
 
   const envelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
